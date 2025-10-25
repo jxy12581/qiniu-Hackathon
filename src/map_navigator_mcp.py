@@ -8,8 +8,56 @@ from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 import mcp.types as types
 from itertools import permutations
+import platform
+import subprocess
 
 app = Server("map-navigator")
+
+def auto_play_music():
+    system = platform.system()
+    
+    try:
+        if system == "Darwin":
+            subprocess.Popen([
+                "osascript", "-e",
+                'tell application "Music" to play'
+            ])
+            return "已启动 Apple Music 播放"
+        elif system == "Windows":
+            try:
+                subprocess.Popen([
+                    "powershell", "-Command",
+                    "Add-Type -AssemblyName presentationCore; " +
+                    "$player = New-Object System.Windows.Media.MediaPlayer; " +
+                    "$player.Open('https://music.163.com'); " +
+                    "$player.Play()"
+                ])
+                return "已尝试启动 Windows Media Player"
+            except:
+                webbrowser.open("https://music.163.com")
+                return "已在浏览器中打开网易云音乐"
+        elif system == "Linux":
+            music_players = [
+                ("rhythmbox", ["rhythmbox"]),
+                ("spotify", ["spotify"]),
+                ("vlc", ["vlc", "--started-from-file"]),
+            ]
+            
+            for player_name, command in music_players:
+                try:
+                    subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    return f"已启动 {player_name} 播放器"
+                except FileNotFoundError:
+                    continue
+            
+            webbrowser.open("https://music.163.com")
+            return "已在浏览器中打开网易云音乐"
+        else:
+            webbrowser.open("https://music.163.com")
+            return "已在浏览器中打开网易云音乐"
+    except Exception as e:
+        webbrowser.open("https://music.163.com")
+        return f"已在浏览器中打开网易云音乐 (fallback: {str(e)})"
 
 @app.list_tools()
 async def handle_list_tools() -> list[Tool]:
@@ -175,13 +223,16 @@ async def handle_call_tool(
         
         webbrowser.open(url)
         
+        music_status = auto_play_music()
+        
         return [
             TextContent(
                 type="text",
                 text=f"✅ Baidu Map navigation opened successfully!\n\n"
                      f"📍 From: {origin}\n"
                      f"📍 To: {destination}\n"
-                     f"🚗 Mode: {mode}\n\n"
+                     f"🚗 Mode: {mode}\n"
+                     f"🎵 Music: {music_status}\n\n"
                      f"The map should now be open in your default browser with navigation ready."
             )
         ]
@@ -200,13 +251,16 @@ async def handle_call_tool(
         
         webbrowser.open(url)
         
+        music_status = auto_play_music()
+        
         return [
             TextContent(
                 type="text",
                 text=f"✅ Amap navigation opened successfully!\n\n"
                      f"📍 From: {origin}\n"
                      f"📍 To: {destination}\n"
-                     f"🚗 Mode: {mode}\n\n"
+                     f"🚗 Mode: {mode}\n"
+                     f"🎵 Music: {music_status}\n\n"
                      f"The map should now be open in your default browser with navigation ready."
             )
         ]
@@ -274,6 +328,8 @@ async def handle_call_tool(
         
         webbrowser.open(url)
         
+        music_status = auto_play_music()
+        
         route_display = f"{origin}"
         for i, dest in enumerate(destinations, 1):
             route_display += f"\n  └─ Stop {i}: {dest}"
@@ -286,7 +342,8 @@ async def handle_call_tool(
                 text=f"✅ Baidu Map multi-destination navigation opened successfully!\n\n"
                      f"📍 Route{optimization_note}:\n{route_display}\n"
                      f"🚗 Mode: {mode}\n"
-                     f"📊 Total stops: {len(destinations)}\n\n"
+                     f"📊 Total stops: {len(destinations)}\n"
+                     f"🎵 Music: {music_status}\n\n"
                      f"The map should now be open in your default browser with multi-point navigation ready."
             )
         ]
@@ -321,6 +378,8 @@ async def handle_call_tool(
             webbrowser.open(url)
             tabs_opened.append(f"Leg {i + 1}: {all_points[i]} → {all_points[i + 1]}")
         
+        music_status = auto_play_music()
+        
         return [
             TextContent(
                 type="text",
@@ -328,7 +387,8 @@ async def handle_call_tool(
                      f"📍 Route{optimization_note}:\n{route_display}\n"
                      f"🚗 Mode: {mode}\n"
                      f"📊 Total stops: {len(destinations)}\n"
-                     f"🗂️ Opened {len(tabs_opened)} navigation tabs (one for each leg)\n\n"
+                     f"🗂️ Opened {len(tabs_opened)} navigation tabs (one for each leg)\n"
+                     f"🎵 Music: {music_status}\n\n"
                      f"The map should now be open in your default browser with navigation segments in separate tabs."
             )
         ]
