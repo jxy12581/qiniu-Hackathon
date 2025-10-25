@@ -1,44 +1,49 @@
-# 地图导航 MCP 服务器 / Map Navigator MCP Server
+# AI导航助手 / AI Navigation Assistant
 
-基于 MCP (Model Context Protocol) 的智能地图导航服务，支持通过 AI 助手控制百度地图和高德地图进行导航。
+基于 MCP (Model Context Protocol) 和 REST API 的智能地图导航服务，支持通过 AI 助手控制百度地图和高德地图进行导航，并提供 HTTP API 接口。
 
-An intelligent map navigation service based on MCP (Model Context Protocol) that enables AI assistants to control Baidu Maps and Amap for navigation.
+An intelligent map navigation service based on MCP (Model Context Protocol) and REST API that enables AI assistants to control Baidu Maps and Amap for navigation, with HTTP API access.
 
 ## 📋 功能特性 / Features
 
 - ✅ **支持双地图平台** / Support for dual map platforms (Baidu Maps & Amap)
 - ✅ **智能导航** / Intelligent navigation from point A to point B
-- ✅ **多目的地路线规划** 🆕 / Multi-destination route planning with optimization
+- ✅ **多目的地路线规划** / Multi-destination route planning with optimization
 - ✅ **自然语言交互** / Natural language interaction via AI assistants
+- ✅ **HTTP REST API** 🆕 / RESTful API for programmatic access
+- ✅ **AI自然语言理解** 🆕 / AI-powered natural language query parsing
 - ✅ **多种交通方式** / Multiple transportation modes (driving, transit, walking, biking)
 - ✅ **自动打开浏览器** / Automatic browser opening
-- ✅ **无需硬编码** / No hardcoded logic - fully MCP-based
+- ✅ **OpenAPI文档** 🆕 / Interactive API documentation with Swagger UI
 
 ## 🏗️ 架构设计 / Architecture
 
 ```
-┌─────────────────┐
-│   AI Assistant  │  (Claude, GPT, etc.)
-│   (MCP Client)  │
-└────────┬────────┘
-         │ MCP Protocol
-         │
-┌────────▼────────┐
-│   MCP Server    │
-│  (Map Control)  │
-├─────────────────┤
-│  Tools:         │
-│  - navigate     │
-│  - open_map     │
-└────────┬────────┘
-         │
-    ┌────▼────┐
-    │ Browser │
-    └─────────┘
-         │
-    ┌────▼────────────┐
-    │ 百度地图 / 高德 │
-    └─────────────────┘
+┌─────────────────┐       ┌─────────────────┐
+│   AI Assistant  │       │  HTTP Clients   │
+│   (MCP Client)  │       │  (Apps, Web)    │
+└────────┬────────┘       └────────┬────────┘
+         │ MCP Protocol            │ HTTP REST API
+         │                         │
+         │        ┌────────────────▼────────────────┐
+         └────────►   AI Navigation Assistant       │
+                  │  ┌──────────┐  ┌─────────────┐ │
+                  │  │   MCP    │  │  FastAPI    │ │
+                  │  │  Server  │  │   Server    │ │
+                  │  └──────────┘  └─────────────┘ │
+                  │  ┌───────────────────────────┐ │
+                  │  │  AI NL Understanding      │ │
+                  │  │  Navigation Engine        │ │
+                  │  └───────────────────────────┘ │
+                  └────────────────┬────────────────┘
+                                   │
+                              ┌────▼────┐
+                              │ Browser │
+                              └─────────┘
+                                   │
+                              ┌────▼────────────┐
+                              │ 百度地图 / 高德 │
+                              └─────────────────┘
 ```
 
 ## 🚀 快速开始 / Quick Start
@@ -98,7 +103,25 @@ uv pip install -r requirements.txt
 
 配置完成后重启 Claude Desktop，服务器将自动连接。
 
+### 启动 API 服务器 / Start API Server 🆕
+
+启动 FastAPI HTTP 服务器以通过 REST API 访问导航功能：
+
+```bash
+python src/ai_navigator_api.py
+```
+
+服务器将在 `http://localhost:8000` 启动。访问 `http://localhost:8000/docs` 查看交互式 API 文档。
+
+或使用 uvicorn 启动：
+
+```bash
+uvicorn src.ai_navigator_api:app --reload --host 0.0.0.0 --port 8000
+```
+
 ## 📖 使用方法 / Usage
+
+### 方式一：通过 MCP 与 AI 助手交互
 
 配置完成后，你可以通过自然语言与 AI 助手对话来使用地图导航功能。
 
@@ -140,9 +163,89 @@ uv pip install -r requirements.txt
 
 **AI助手**: 将调用 `navigate_amap_multi` 工具并启用路线优化，计算访问所有地点的最短路径。
 
-## 🛠️ 可用工具 / Available Tools
+### 方式二：通过 HTTP REST API 🆕
 
-### 1. `navigate_baidu_map`
+启动 API 服务器后，可以通过 HTTP 请求访问导航功能。
+
+#### API 示例 1: 基础导航
+
+```bash
+curl -X POST "http://localhost:8000/api/navigate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": "北京天安门",
+    "destination": "上海东方明珠",
+    "mode": "driving",
+    "map_type": "baidu"
+  }'
+```
+
+#### API 示例 2: 多目的地导航
+
+```bash
+curl -X POST "http://localhost:8000/api/navigate/multi" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": "北京天安门",
+    "destinations": ["上海东方明珠", "杭州西湖", "苏州园林"],
+    "mode": "driving",
+    "optimize": false,
+    "map_type": "baidu"
+  }'
+```
+
+#### API 示例 3: AI 自然语言导航 🌟
+
+```bash
+curl -X POST "http://localhost:8000/api/ai/navigate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "帮我从北京天安门导航到上海东方明珠，用百度地图"
+  }'
+```
+
+更多示例：
+
+```bash
+# 步行导航
+curl -X POST "http://localhost:8000/api/ai/navigate" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "从广州塔到深圳湾公园，步行路线，用高德地图"}'
+
+# 多目的地路线
+curl -X POST "http://localhost:8000/api/ai/navigate" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "我要从杭州西湖出发，依次去苏州园林、南京夫子庙、扬州瘦西湖"}'
+```
+
+#### API 示例 4: Python 客户端
+
+```python
+import requests
+
+response = requests.post(
+    "http://localhost:8000/api/navigate",
+    json={
+        "origin": "北京天安门",
+        "destination": "上海东方明珠",
+        "mode": "driving",
+        "map_type": "baidu"
+    }
+)
+print(response.json())
+```
+
+运行示例代码：
+
+```bash
+python api_examples.py
+```
+
+## 🛠️ 可用功能 / Available Features
+
+### MCP 工具 (通过 AI 助手)
+
+#### 1. `navigate_baidu_map`
 
 在百度地图中打开从起点到终点的导航。
 
@@ -196,7 +299,7 @@ uv pip install -r requirements.txt
   - `riding`: 骑行
 - `optimize` (boolean, 可选): 是否优化路线顺序以获得最短总距离(默认: false)
 
-### 6. `navigate_amap_multi` 🆕
+#### 6. `navigate_amap_multi` 🆕
 
 在高德地图中打开多目的地导航，支持顺序和优化路线规划。
 
@@ -210,6 +313,75 @@ uv pip install -r requirements.txt
   - `bike`: 骑行
 - `optimize` (boolean, 可选): 是否优化路线顺序以获得最短总距离(默认: false)
 
+### REST API 端点 🆕
+
+#### 1. `POST /api/navigate`
+
+基础导航功能。
+
+**请求体**:
+```json
+{
+  "origin": "北京天安门",
+  "destination": "上海东方明珠",
+  "mode": "driving",
+  "map_type": "baidu"
+}
+```
+
+#### 2. `POST /api/navigate/multi`
+
+多目的地导航。
+
+**请求体**:
+```json
+{
+  "origin": "北京天安门",
+  "destinations": ["上海东方明珠", "杭州西湖", "苏州园林"],
+  "mode": "driving",
+  "optimize": false,
+  "map_type": "baidu"
+}
+```
+
+#### 3. `POST /api/location`
+
+显示地图位置。
+
+**请求体**:
+```json
+{
+  "location": "北京故宫",
+  "map_type": "baidu"
+}
+```
+
+#### 4. `POST /api/ai/navigate` 🌟
+
+AI 自然语言导航（智能解析用户查询）。
+
+**请求体**:
+```json
+{
+  "query": "帮我从北京天安门导航到上海东方明珠，用百度地图",
+  "map_type": "baidu"
+}
+```
+
+**支持的自然语言格式**:
+- "从{起点}到{终点}"
+- "从{起点}去{终点}，步行/骑行/公交"
+- "用百度地图/高德地图导航到{终点}"
+- "我要从{起点}出发，依次去{地点1}、{地点2}、{地点3}"
+
+#### 5. `GET /health`
+
+健康检查端点。
+
+#### 6. `GET /docs`
+
+交互式 API 文档（Swagger UI）。
+
 ## 🔧 技术实现 / Technical Implementation
 
 ### MCP 协议
@@ -220,8 +392,21 @@ uv pip install -r requirements.txt
 
 - **Python 3.10+**: 主要编程语言
 - **mcp**: MCP 协议 Python SDK
+- **FastAPI**: 现代高性能 Web 框架
+- **Pydantic**: 数据验证和设置管理
+- **uvicorn**: ASGI 服务器
 - **webbrowser**: 标准库，用于打开浏览器
 - **urllib**: URL 编码处理
+
+### AI 自然语言理解
+
+API 服务集成了自然语言处理能力，可以理解多种中文表达方式：
+
+- **起点识别**: "从...出发", "起点是...", "...到..." 等
+- **终点识别**: "到...", "去...", "导航到...", "终点是..." 等
+- **多目的地识别**: "依次去...", "先后去...", "去...、...、..." 等
+- **交通方式识别**: "步行", "骑行", "公交", "驾车" 等
+- **地图平台识别**: "百度地图", "高德地图", "用百度" 等
 
 ### 地图 URL 构造
 
