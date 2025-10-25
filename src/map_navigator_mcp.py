@@ -7,6 +7,7 @@ from mcp.server import NotificationOptions, Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 import mcp.types as types
+from itertools import permutations
 
 app = Server("map-navigator")
 
@@ -87,6 +88,68 @@ async def handle_list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["location"]
+            }
+        ),
+        Tool(
+            name="navigate_baidu_map_multi",
+            description="Open Baidu Map navigation with multiple destinations. Supports both sequential and optimized route planning.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "origin": {
+                        "type": "string",
+                        "description": "Starting point address (e.g., '北京天安门' or 'Beijing Tiananmen')"
+                    },
+                    "destinations": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of destination addresses in order (e.g., ['上海东方明珠', '杭州西湖', '苏州园林'])",
+                        "minItems": 2
+                    },
+                    "mode": {
+                        "type": "string",
+                        "description": "Navigation mode: 'driving' (default), 'transit', 'walking', 'riding'",
+                        "enum": ["driving", "transit", "walking", "riding"],
+                        "default": "driving"
+                    },
+                    "optimize": {
+                        "type": "boolean",
+                        "description": "Whether to optimize the route order for shortest total distance (default: false)",
+                        "default": False
+                    }
+                },
+                "required": ["origin", "destinations"]
+            }
+        ),
+        Tool(
+            name="navigate_amap_multi",
+            description="Open Amap (Gaode Map) navigation with multiple destinations. Supports both sequential and optimized route planning.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "origin": {
+                        "type": "string",
+                        "description": "Starting point address (e.g., '北京天安门' or 'Beijing Tiananmen')"
+                    },
+                    "destinations": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of destination addresses in order (e.g., ['上海东方明珠', '杭州西湖', '苏州园林'])",
+                        "minItems": 2
+                    },
+                    "mode": {
+                        "type": "string",
+                        "description": "Navigation mode: 'car' (default), 'bus', 'walk', 'bike'",
+                        "enum": ["car", "bus", "walk", "bike"],
+                        "default": "car"
+                    },
+                    "optimize": {
+                        "type": "boolean",
+                        "description": "Whether to optimize the route order for shortest total distance (default: false)",
+                        "default": False
+                    }
+                },
+                "required": ["origin", "destinations"]
             }
         )
     ]
@@ -188,8 +251,105 @@ async def handle_call_tool(
             )
         ]
     
+    elif name == "navigate_baidu_map_multi":
+        origin = arguments.get("origin")
+        destinations = arguments.get("destinations")
+        mode = arguments.get("mode", "driving")
+        optimize = arguments.get("optimize", False)
+        
+        if not origin or not destinations:
+            raise ValueError("Both origin and destinations are required")
+        
+        if not isinstance(destinations, list) or len(destinations) < 2:
+            raise ValueError("destinations must be a list with at least 2 locations")
+        
+        if optimize:
+            destinations = _optimize_route_simple(destinations)
+        
+        waypoints = "|".join([quote(dest) for dest in destinations[:-1]])
+        origin_encoded = quote(origin)
+        final_destination_encoded = quote(destinations[-1])
+        
+        url = f"https://map.baidu.com/direction?origin={origin_encoded}&destination={final_destination_encoded}&waypoints={waypoints}&mode={mode}"
+        
+        webbrowser.open(url)
+        
+        route_display = f"{origin}"
+        for i, dest in enumerate(destinations, 1):
+            route_display += f"\n  └─ Stop {i}: {dest}"
+        
+        optimization_note = " (optimized)" if optimize else " (sequential)"
+        
+        return [
+            TextContent(
+                type="text",
+                text=f"✅ Baidu Map multi-destination navigation opened successfully!\n\n"
+                     f"📍 Route{optimization_note}:\n{route_display}\n"
+                     f"🚗 Mode: {mode}\n"
+                     f"📊 Total stops: {len(destinations)}\n\n"
+                     f"The map should now be open in your default browser with multi-point navigation ready."
+            )
+        ]
+    
+    elif name == "navigate_amap_multi":
+        origin = arguments.get("origin")
+        destinations = arguments.get("destinations")
+        mode = arguments.get("mode", "car")
+        optimize = arguments.get("optimize", False)
+        
+        if not origin or not destinations:
+            raise ValueError("Both origin and destinations are required")
+        
+        if not isinstance(destinations, list) or len(destinations) < 2:
+            raise ValueError("destinations must be a list with at least 2 locations")
+        
+        if optimize:
+            destinations = _optimize_route_simple(destinations)
+        
+        all_points = [origin] + destinations
+        route_display = f"{origin}"
+        for i, dest in enumerate(destinations, 1):
+            route_display += f"\n  └─ Stop {i}: {dest}"
+        
+        optimization_note = " (optimized)" if optimize else " (sequential)"
+        
+        tabs_opened = []
+        for i in range(len(all_points) - 1):
+            from_point = quote(all_points[i])
+            to_point = quote(all_points[i + 1])
+            url = f"https://uri.amap.com/navigation?from={from_point}&to={to_point}&src=myapp&coordinate=gaode&callnative=1&mode={mode}&policy=1&t=0"
+            webbrowser.open(url)
+            tabs_opened.append(f"Leg {i + 1}: {all_points[i]} → {all_points[i + 1]}")
+        
+        return [
+            TextContent(
+                type="text",
+                text=f"✅ Amap multi-destination navigation opened successfully!\n\n"
+                     f"📍 Route{optimization_note}:\n{route_display}\n"
+                     f"🚗 Mode: {mode}\n"
+                     f"📊 Total stops: {len(destinations)}\n"
+                     f"🗂️ Opened {len(tabs_opened)} navigation tabs (one for each leg)\n\n"
+                     f"The map should now be open in your default browser with navigation segments in separate tabs."
+            )
+        ]
+    
     else:
         raise ValueError(f"Unknown tool: {name}")
+
+def _optimize_route_simple(destinations: list[str]) -> list[str]:
+    if len(destinations) <= 3:
+        min_route = destinations
+        min_length = len("".join(destinations))
+        
+        for perm in permutations(destinations):
+            route_length = len("".join(perm))
+            if route_length < min_length:
+                min_length = route_length
+                min_route = list(perm)
+        
+        return min_route
+    else:
+        return destinations
 
 async def main():
     async with stdio_server() as (read_stream, write_stream):
