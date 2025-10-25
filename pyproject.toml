@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "map-navigator-mcp"
+version = "1.0.0"
+description = "MCP server for controlling map navigation (Baidu Map & Amap)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0.0"
+]
+
+[project.scripts]
+map-navigator-mcp = "map_navigator_mcp:main"
