@@ -11,9 +11,11 @@ from itertools import permutations
 import platform
 import subprocess
 from destination_reminder import DestinationReminder
+from speed_monitor import SpeedMonitor
 
 app = Server("map-navigator")
 reminder_service = DestinationReminder()
+speed_monitor = SpeedMonitor()
 
 def auto_play_music():
     system = platform.system()
@@ -242,6 +244,57 @@ async def handle_list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["location"]
+            }
+        ),
+        Tool(
+            name="check_speed_limit",
+            description="Check current speed against speed limit and provide overspeed alert. Monitors speed during navigation and warns when exceeding limits.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "current_speed": {
+                        "type": "number",
+                        "description": "Current speed in km/h"
+                    },
+                    "road_type": {
+                        "type": "string",
+                        "description": "Road type: '城市道路', '城市快速路', '高速公路', '学校区域', '居民区'",
+                        "enum": ["城市道路", "城市快速路", "普通公路", "高速公路", "学校区域", "居民区"]
+                    },
+                    "location": {
+                        "type": "string",
+                        "description": "Location description (e.g., '北京三环', '学校附近')"
+                    },
+                    "speed_limit": {
+                        "type": "number",
+                        "description": "Optional specific speed limit in km/h"
+                    }
+                },
+                "required": ["current_speed"]
+            }
+        ),
+        Tool(
+            name="get_speed_reminder",
+            description="Get speed reminder and safety tips for a navigation route. Provides speed limits and safety guidelines based on route type and locations.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "origin": {
+                        "type": "string",
+                        "description": "Starting point address"
+                    },
+                    "destination": {
+                        "type": "string",
+                        "description": "Destination address"
+                    },
+                    "route_type": {
+                        "type": "string",
+                        "description": "Navigation mode: 'driving' (default), 'riding', 'walking'",
+                        "enum": ["driving", "riding", "walking"],
+                        "default": "driving"
+                    }
+                },
+                "required": ["origin", "destination"]
             }
         )
     ]
@@ -482,6 +535,52 @@ async def handle_call_tool(
             TextContent(
                 type="text",
                 text=f"✅ Destination information retrieved successfully!\n\n{full_message}"
+            )
+        ]
+    
+    elif name == "check_speed_limit":
+        current_speed = arguments.get("current_speed")
+        road_type = arguments.get("road_type")
+        location = arguments.get("location")
+        speed_limit = arguments.get("speed_limit")
+        
+        if current_speed is None:
+            raise ValueError("current_speed is required")
+        
+        speed_check = speed_monitor.check_speed(
+            current_speed=current_speed,
+            speed_limit=speed_limit,
+            road_type=road_type,
+            location=location
+        )
+        
+        alert_message = speed_monitor.format_speed_alert(speed_check)
+        
+        return [
+            TextContent(
+                type="text",
+                text=f"🚦 Speed check completed!\n\n{alert_message}"
+            )
+        ]
+    
+    elif name == "get_speed_reminder":
+        origin = arguments.get("origin")
+        destination = arguments.get("destination")
+        route_type = arguments.get("route_type", "driving")
+        
+        if not origin or not destination:
+            raise ValueError("Both origin and destination are required")
+        
+        reminder_message = speed_monitor.create_speed_reminder_message(
+            origin=origin,
+            destination=destination,
+            route_type=route_type
+        )
+        
+        return [
+            TextContent(
+                type="text",
+                text=f"✅ Speed reminder generated!\n\n{reminder_message}"
             )
         ]
     
