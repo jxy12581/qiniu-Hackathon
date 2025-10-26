@@ -12,16 +12,18 @@ import uvicorn
 from destination_reminder import DestinationReminder
 from speed_monitor import SpeedMonitor
 from travel_guide import TravelGuidePlanner, TravelGuide
+from transportation_recommender import TransportationRecommender, RouteRecommendation, TransportationOption
 
 app = FastAPI(
     title="AI Navigation Assistant API",
-    description="AI-powered navigation assistant supporting Baidu Maps and Amap with natural language interface, weather reminders, travel recommendations, speed monitoring, and travel guide planning",
-    version="1.3.0"
+    description="AI-powered navigation assistant supporting Baidu Maps and Amap with natural language interface, weather reminders, travel recommendations, speed monitoring, travel guide planning, and intelligent transportation recommendations",
+    version="1.4.0"
 )
 
 reminder_service = DestinationReminder()
 speed_monitor = SpeedMonitor()
 travel_planner = TravelGuidePlanner()
+transport_recommender = TransportationRecommender()
 
 app.add_middleware(
     CORSMiddleware,
@@ -114,6 +116,28 @@ class TravelGuideResponse(BaseModel):
     success: bool
     message: str
     guide: TravelGuide
+
+class TransportRecommendationRequest(BaseModel):
+    origin: str = Field(..., description="Starting point address")
+    destination: str = Field(..., description="Destination address")
+    estimated_distance_km: Optional[float] = Field(None, description="Estimated distance in kilometers")
+    trip_purpose: Optional[Literal["通勤", "旅游", "商务", "紧急"]] = Field(None, description="Trip purpose")
+    luggage: Optional[Literal["无", "少量", "较多"]] = Field(None, description="Luggage amount")
+    budget: Optional[Literal["经济", "标准", "舒适"]] = Field(None, description="Budget level")
+    time_sensitive: bool = Field(False, description="Whether time is sensitive")
+
+class TransportQueryRequest(BaseModel):
+    query: str = Field(..., description="Natural language transportation query")
+
+class TransportRecommendationResponse(BaseModel):
+    success: bool
+    message: str
+    recommendation: RouteRecommendation
+
+class TransportModesResponse(BaseModel):
+    success: bool
+    message: str
+    modes: List[TransportationOption]
 
 def auto_play_music():
     system = platform.system()
@@ -682,6 +706,108 @@ async def get_supported_cities():
         "total": len(cities),
         "message": f"当前支持{len(cities)}个城市的旅游攻略规划"
     }
+
+@app.post("/api/transportation/recommend", response_model=TransportRecommendationResponse, tags=["Transportation"])
+async def recommend_transportation(request: TransportRecommendationRequest):
+    """
+    Get intelligent transportation recommendations for a route.
+    
+    Args:
+        request: TransportRecommendationRequest with route and preference details
+        
+    Returns:
+        TransportRecommendationResponse with recommended transportation mode and alternatives
+    """
+    try:
+        recommendation = transport_recommender.recommend_transportation(
+            origin=request.origin,
+            destination=request.destination,
+            estimated_distance_km=request.estimated_distance_km,
+            trip_purpose=request.trip_purpose,
+            luggage=request.luggage,
+            budget=request.budget,
+            time_sensitive=request.time_sensitive
+        )
+        
+        return TransportRecommendationResponse(
+            success=True,
+            message=f"成功为您推荐从{request.origin}到{request.destination}的交通方式",
+            recommendation=recommendation
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/transportation/recommend/ai", response_model=TransportRecommendationResponse, tags=["Transportation"])
+async def recommend_transportation_ai(request: TransportQueryRequest):
+    """
+    Get intelligent transportation recommendations using natural language query.
+    
+    Supports queries like:
+    - "从北京到上海用什么交通工具?"
+    - "我要去杭州出差，行李多，推荐交通方式"
+    - "通勤从天安门到西单，怎么去最经济?"
+    
+    Args:
+        request: TransportQueryRequest with natural language query
+        
+    Returns:
+        TransportRecommendationResponse with recommended transportation mode and alternatives
+    """
+    try:
+        if not request.query or not request.query.strip():
+            raise HTTPException(status_code=400, detail="查询内容不能为空")
+        
+        parsed = transport_recommender.parse_recommendation_query(request.query.strip())
+        
+        if not parsed["origin"]:
+            raise HTTPException(
+                status_code=400,
+                detail="无法识别起点。请在查询中明确指定起点，例如：'从北京到上海用什么交通工具'"
+            )
+        
+        if not parsed["destination"]:
+            raise HTTPException(
+                status_code=400,
+                detail="无法识别终点。请在查询中明确指定终点，例如：'从北京到上海用什么交通工具'"
+            )
+        
+        recommendation = transport_recommender.recommend_transportation(
+            origin=parsed["origin"],
+            destination=parsed["destination"],
+            trip_purpose=parsed["trip_purpose"],
+            luggage=parsed["luggage"],
+            budget=parsed["budget"],
+            time_sensitive=parsed["time_sensitive"]
+        )
+        
+        return TransportRecommendationResponse(
+            success=True,
+            message=f"成功为您推荐从{parsed['origin']}到{parsed['destination']}的交通方式",
+            recommendation=recommendation
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI解析错误: {str(e)}")
+
+@app.get("/api/transportation/modes", response_model=TransportModesResponse, tags=["Transportation"])
+async def get_transportation_modes():
+    """
+    Get all available transportation modes with details.
+    
+    Returns:
+        List of all transportation modes with descriptions, pros, cons, and use cases
+    """
+    try:
+        modes = transport_recommender.get_all_transportation_modes()
+        
+        return TransportModesResponse(
+            success=True,
+            message=f"共有{len(modes)}种交通方式可供选择",
+            modes=modes
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

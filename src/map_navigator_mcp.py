@@ -12,10 +12,12 @@ import platform
 import subprocess
 from destination_reminder import DestinationReminder
 from speed_monitor import SpeedMonitor
+from transportation_recommender import TransportationRecommender
 
 app = Server("map-navigator")
 reminder_service = DestinationReminder()
 speed_monitor = SpeedMonitor()
+transport_recommender = TransportationRecommender()
 
 def auto_play_music():
     system = platform.system()
@@ -295,6 +297,56 @@ async def handle_list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["origin", "destination"]
+            }
+        ),
+        Tool(
+            name="recommend_transportation",
+            description="Get intelligent transportation recommendations for a route. Recommends the best transportation mode based on distance, trip purpose, luggage, budget, and time constraints.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "origin": {
+                        "type": "string",
+                        "description": "Starting point address"
+                    },
+                    "destination": {
+                        "type": "string",
+                        "description": "Destination address"
+                    },
+                    "estimated_distance_km": {
+                        "type": "number",
+                        "description": "Estimated distance in kilometers (optional, will be estimated if not provided)"
+                    },
+                    "trip_purpose": {
+                        "type": "string",
+                        "description": "Trip purpose: '通勤', '旅游', '商务', '紧急'",
+                        "enum": ["通勤", "旅游", "商务", "紧急"]
+                    },
+                    "luggage": {
+                        "type": "string",
+                        "description": "Luggage amount: '无', '少量', '较多'",
+                        "enum": ["无", "少量", "较多"]
+                    },
+                    "budget": {
+                        "type": "string",
+                        "description": "Budget level: '经济', '标准', '舒适'",
+                        "enum": ["经济", "标准", "舒适"]
+                    },
+                    "time_sensitive": {
+                        "type": "boolean",
+                        "description": "Whether time is sensitive (urgent trip)"
+                    }
+                },
+                "required": ["origin", "destination"]
+            }
+        ),
+        Tool(
+            name="get_transportation_modes",
+            description="Get detailed information about all available transportation modes including pros, cons, costs, speeds, and best use cases.",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": []
             }
         )
     ]
@@ -581,6 +633,100 @@ async def handle_call_tool(
             TextContent(
                 type="text",
                 text=f"✅ Speed reminder generated!\n\n{reminder_message}"
+            )
+        ]
+    
+    elif name == "recommend_transportation":
+        origin = arguments.get("origin")
+        destination = arguments.get("destination")
+        estimated_distance_km = arguments.get("estimated_distance_km")
+        trip_purpose = arguments.get("trip_purpose")
+        luggage = arguments.get("luggage")
+        budget = arguments.get("budget")
+        time_sensitive = arguments.get("time_sensitive", False)
+        
+        if not origin or not destination:
+            raise ValueError("Both origin and destination are required")
+        
+        recommendation = transport_recommender.recommend_transportation(
+            origin=origin,
+            destination=destination,
+            estimated_distance_km=estimated_distance_km,
+            trip_purpose=trip_purpose,
+            luggage=luggage,
+            budget=budget,
+            time_sensitive=time_sensitive
+        )
+        
+        primary_mode = transport_recommender.get_transportation_mode(recommendation.recommended_mode)
+        primary_name = primary_mode.name if primary_mode else recommendation.recommended_mode
+        
+        response_text = f"🚗 交通工具推荐\n\n"
+        response_text += f"📍 路线: {recommendation.origin} → {recommendation.destination}\n"
+        response_text += f"📏 距离: {recommendation.estimated_distance}\n\n"
+        response_text += f"✅ 推荐交通方式: {primary_name}\n"
+        response_text += f"💡 推荐理由: {recommendation.recommendation_reason}\n\n"
+        
+        response_text += "⏱️ 预计时间:\n"
+        for mode, duration in recommendation.estimated_duration.items():
+            response_text += f"  • {mode}: {duration}\n"
+        
+        response_text += "\n💰 预估费用:\n"
+        for mode, cost in recommendation.cost_estimate.items():
+            response_text += f"  • {mode}: {cost}\n"
+        
+        if recommendation.alternative_modes:
+            alt_names = []
+            for alt_mode in recommendation.alternative_modes[:2]:
+                alt_mode_obj = transport_recommender.get_transportation_mode(alt_mode)
+                if alt_mode_obj:
+                    alt_names.append(alt_mode_obj.name)
+            if alt_names:
+                response_text += f"\n🔄 备选方案: {', '.join(alt_names)}\n"
+        
+        if recommendation.tips:
+            response_text += "\n📝 出行提示:\n"
+            for tip in recommendation.tips:
+                response_text += f"  • {tip}\n"
+        
+        return [
+            TextContent(
+                type="text",
+                text=response_text
+            )
+        ]
+    
+    elif name == "get_transportation_modes":
+        modes = transport_recommender.get_all_transportation_modes()
+        
+        response_text = "🚗 所有交通方式详情\n\n"
+        
+        for mode in modes:
+            response_text += f"{'='*50}\n"
+            response_text += f"🚀 {mode.name} ({mode.mode})\n"
+            response_text += f"📝 {mode.description}\n\n"
+            response_text += f"⚡ 速度: {mode.typical_speed}\n"
+            response_text += f"💰 费用: {mode.cost_range}\n"
+            response_text += f"📏 适合距离: {mode.suitable_distance}\n\n"
+            
+            response_text += "✅ 优点:\n"
+            for pro in mode.pros[:3]:
+                response_text += f"  • {pro}\n"
+            
+            response_text += "\n❌ 缺点:\n"
+            for con in mode.cons[:3]:
+                response_text += f"  • {con}\n"
+            
+            response_text += "\n💡 最佳使用场景:\n"
+            for use_case in mode.best_use_cases[:3]:
+                response_text += f"  • {use_case}\n"
+            
+            response_text += "\n"
+        
+        return [
+            TextContent(
+                type="text",
+                text=response_text
             )
         ]
     
