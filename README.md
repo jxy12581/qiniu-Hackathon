@@ -18,6 +18,7 @@ An intelligent map navigation service based on MCP (Model Context Protocol) and 
 - ✅ **多种交通方式** / Multiple transportation modes (driving, transit, walking, biking)
 - ✅ **自动打开浏览器** / Automatic browser opening
 - ✅ **OpenAPI文档** 🆕 / Interactive API documentation with Swagger UI
+- ✅ **旅游攻略规划** 🎉 / Travel guide planning with itinerary and budget estimation
 
 ## 🏗️ 架构设计 / Architecture
 
@@ -225,6 +226,12 @@ After configuration, you can use natural language to interact with the AI assist
 
 **AI助手**: 将调用 `navigate_amap_multi` 工具并启用路线优化，计算访问所有地点的最短路径。
 
+### 示例 7: 旅游攻略规划 🎉
+
+**用户**: 帮我规划北京3天游的攻略
+
+**AI助手**: 将调用旅游攻略规划功能，生成包含景点推荐、每日行程、预算估算和旅行建议的完整攻略。
+
 ---
 
 ## 🔌 REST API 详细示例 / Detailed REST API Examples
@@ -280,7 +287,28 @@ curl -X POST "http://localhost:8000/api/ai/navigate" \
   -d '{"query": "我要从杭州西湖出发，依次去苏州园林、南京夫子庙、扬州瘦西湖"}'
 ```
 
-#### API 示例 4: Python 客户端
+#### API 示例 4: 旅游攻略规划 🎉
+
+```bash
+# 创建基础旅游攻略
+curl -X POST "http://localhost:8000/api/travel/guide" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "destination": "北京",
+    "duration_days": 3,
+    "travel_style": "经典游"
+  }'
+
+# AI自然语言创建旅游攻略
+curl -X POST "http://localhost:8000/api/travel/guide/ai" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "帮我规划杭州5天深度游"}'
+
+# 获取支持的城市列表
+curl -X GET "http://localhost:8000/api/travel/cities"
+```
+
+#### API 示例 5: Python 客户端
 
 ```python
 import requests
@@ -301,6 +329,7 @@ print(response.json())
 
 ```bash
 python api_examples.py
+python test_travel_guide.py
 ```
 
 ## 🛠️ 可用功能 / Available Features
@@ -377,6 +406,8 @@ python api_examples.py
 
 ### REST API 端点 🆕
 
+#### 导航相关
+
 #### 1. `POST /api/navigate`
 
 基础导航功能。
@@ -443,6 +474,114 @@ AI 自然语言导航（智能解析用户查询）。
 #### 6. `GET /docs`
 
 交互式 API 文档（Swagger UI）。
+
+#### 旅游攻略相关 🎉
+
+#### 7. `POST /api/travel/guide`
+
+创建完整的旅游攻略，包含景点推荐、行程安排、预算估算等。
+
+**请求体**:
+```json
+{
+  "destination": "北京",
+  "duration_days": 3,
+  "travel_style": "经典游",
+  "start_date": "2025-05-01"
+}
+```
+
+**参数说明**:
+- `destination`: 目的地城市（当前支持：北京、上海、杭州、成都、西安）
+- `duration_days`: 行程天数（1-30天）
+- `travel_style`: 旅行风格
+  - `深度游`: 慢节奏，每天2个景点，预算较高
+  - `经典游`: 适中节奏，每天3个景点，标准预算（默认）
+  - `打卡游`: 快节奏，每天4个景点，预算较低
+- `start_date`: 出发日期（可选，格式：YYYY-MM-DD）
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "message": "成功创建北京3日游攻略",
+  "guide": {
+    "destination": "北京",
+    "duration_days": 3,
+    "travel_style": "经典游",
+    "best_season": "春季(4-5月)和秋季(9-10月)，气候宜人，适合旅游",
+    "itinerary": [
+      {
+        "day": 1,
+        "date": "2025-05-01",
+        "attractions": ["故宫博物院", "天坛公园", "天安门广场"],
+        "activities": ["游览故宫博物院 (建议3-4小时)", "游览天坛公园 (建议2-3小时)", "游览天安门广场 (建议1-2小时)"],
+        "notes": "根据经典游安排，适中节奏，游览主要景点"
+      }
+    ],
+    "recommended_attractions": [
+      {
+        "name": "故宫博物院",
+        "category": "历史文化",
+        "description": "中国明清两代的皇家宫殿，世界文化遗产",
+        "recommended_duration": "3-4小时",
+        "best_time": "春秋季节，避开周一闭馆",
+        "entrance_fee": "60元(旺季)/40元(淡季)"
+      }
+    ],
+    "budget_estimate": {
+      "transportation": 500.0,
+      "accommodation": 1200.0,
+      "food": 450.0,
+      "tickets": 600.0,
+      "shopping": 750.0,
+      "total": 3500.0
+    },
+    "travel_tips": [
+      "提前预订酒店和景点门票，可享受优惠",
+      "故宫需要提前网上预约购票",
+      "地铁是最方便的交通工具"
+    ]
+  }
+}
+```
+
+#### 8. `POST /api/travel/guide/ai` 🌟
+
+使用自然语言创建旅游攻略。
+
+**请求体**:
+```json
+{
+  "query": "帮我规划杭州5天深度游"
+}
+```
+
+**支持的自然语言格式**:
+- "帮我规划{城市}{X}天游"
+- "我想去{城市}玩{X}天，深度游/打卡游"
+- "{城市}{X}日游攻略"
+- "{城市}{X}天{旅行风格}"
+
+#### 9. `GET /api/travel/cities`
+
+获取支持旅游攻略规划的城市列表。
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "cities": [
+    {
+      "name": "北京",
+      "attractions_count": 5,
+      "sample_attractions": ["故宫博物院", "长城(八达岭)", "天坛公园"]
+    }
+  ],
+  "total": 5,
+  "message": "当前支持5个城市的旅游攻略规划"
+}
+```
 
 ## 🔧 技术实现 / Technical Implementation
 

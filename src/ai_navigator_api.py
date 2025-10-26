@@ -11,15 +11,17 @@ import re
 import uvicorn
 from destination_reminder import DestinationReminder
 from speed_monitor import SpeedMonitor
+from travel_guide import TravelGuidePlanner, TravelGuide
 
 app = FastAPI(
     title="AI Navigation Assistant API",
-    description="AI-powered navigation assistant supporting Baidu Maps and Amap with natural language interface, weather reminders, travel recommendations, and speed monitoring",
-    version="1.2.0"
+    description="AI-powered navigation assistant supporting Baidu Maps and Amap with natural language interface, weather reminders, travel recommendations, speed monitoring, and travel guide planning",
+    version="1.3.0"
 )
 
 reminder_service = DestinationReminder()
 speed_monitor = SpeedMonitor()
+travel_planner = TravelGuidePlanner()
 
 app.add_middleware(
     CORSMiddleware,
@@ -95,6 +97,23 @@ class SpeedResponse(BaseModel):
     success: bool
     message: str
     details: dict
+
+class TravelGuideRequest(BaseModel):
+    destination: str = Field(..., description="Destination city")
+    duration_days: int = Field(3, ge=1, le=30, description="Trip duration in days")
+    travel_style: Optional[Literal["深度游", "经典游", "打卡游"]] = Field(
+        "经典游",
+        description="Travel style: 深度游(deep), 经典游(classic), 打卡游(quick)"
+    )
+    start_date: Optional[str] = Field(None, description="Trip start date (YYYY-MM-DD)")
+
+class TravelGuideQueryRequest(BaseModel):
+    query: str = Field(..., description="Natural language travel guide query")
+
+class TravelGuideResponse(BaseModel):
+    success: bool
+    message: str
+    guide: TravelGuide
 
 def auto_play_music():
     system = platform.system()
@@ -249,6 +268,8 @@ async def root():
             "navigate_multi": "/api/navigate/multi - Multi-destination navigation",
             "location": "/api/location - Show location on map",
             "ai_navigate": "/api/ai/navigate - Natural language navigation",
+            "travel_guide": "/api/travel/guide - Create travel guide",
+            "travel_guide_ai": "/api/travel/guide/ai - Natural language travel guide",
             "docs": "/docs - API documentation"
         }
     }
@@ -562,6 +583,105 @@ async def get_city_speed_limits(city: str):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/travel/guide", response_model=TravelGuideResponse, tags=["Travel Guide"])
+async def create_travel_guide(request: TravelGuideRequest):
+    """
+    Create a comprehensive travel guide for a destination.
+    
+    Args:
+        request: TravelGuideRequest with destination, duration, style, and start date
+        
+    Returns:
+        TravelGuideResponse with complete travel itinerary and recommendations
+    """
+    try:
+        guide = travel_planner.create_itinerary(
+            destination=request.destination,
+            duration_days=request.duration_days,
+            travel_style=request.travel_style,
+            start_date=request.start_date
+        )
+        
+        return TravelGuideResponse(
+            success=True,
+            message=f"成功创建{request.destination}{request.duration_days}日游攻略",
+            guide=guide
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/travel/guide/ai", response_model=TravelGuideResponse, tags=["Travel Guide"])
+async def create_travel_guide_ai(request: TravelGuideQueryRequest):
+    """
+    Create a travel guide using natural language query.
+    
+    Supports queries like:
+    - "帮我规划北京3天游"
+    - "我想去上海玩5天，深度游"
+    - "杭州4日游攻略"
+    
+    Args:
+        request: TravelGuideQueryRequest with natural language query
+        
+    Returns:
+        TravelGuideResponse with complete travel itinerary and recommendations
+    """
+    try:
+        if not request.query or not request.query.strip():
+            raise HTTPException(status_code=400, detail="查询内容不能为空")
+        
+        parsed = travel_planner.parse_travel_query(request.query.strip())
+        
+        if not parsed["destination"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"无法识别目的地。请明确指定城市，当前支持: {', '.join(travel_planner.city_attractions.keys())}"
+            )
+        
+        guide = travel_planner.create_itinerary(
+            destination=parsed["destination"],
+            duration_days=parsed["duration_days"],
+            travel_style=parsed["travel_style"],
+            start_date=parsed["start_date"]
+        )
+        
+        return TravelGuideResponse(
+            success=True,
+            message=f"成功创建{parsed['destination']}{parsed['duration_days']}日游攻略({parsed['travel_style']})",
+            guide=guide
+        )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI解析错误: {str(e)}")
+
+@app.get("/api/travel/cities", tags=["Travel Guide"])
+async def get_supported_cities():
+    """
+    Get list of supported cities for travel guide planning.
+    
+    Returns:
+        List of supported cities with their attractions count
+    """
+    cities = []
+    for city, attractions in travel_planner.city_attractions.items():
+        cities.append({
+            "name": city,
+            "attractions_count": len(attractions),
+            "sample_attractions": [a.name for a in attractions[:3]]
+        })
+    
+    return {
+        "success": True,
+        "cities": cities,
+        "total": len(cities),
+        "message": f"当前支持{len(cities)}个城市的旅游攻略规划"
+    }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
