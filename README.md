@@ -13,12 +13,13 @@ An intelligent map navigation service based on MCP (Model Context Protocol) and 
 - ✅ **智能导航** / Intelligent navigation from point A to point B
 - ✅ **多目的地路线规划** / Multi-destination route planning with optimization
 - ✅ **自然语言交互** / Natural language interaction via AI assistants
-- ✅ **HTTP REST API** 🆕 / RESTful API for programmatic access
-- ✅ **AI自然语言理解** 🆕 / AI-powered natural language query parsing
+- ✅ **浏览器对话界面** 🆕 / Browser-based dialog interface for interactive conversations
+- ✅ **HTTP REST API** / RESTful API for programmatic access
+- ✅ **AI自然语言理解** / AI-powered natural language query parsing
 - ✅ **多种交通方式** / Multiple transportation modes (driving, transit, walking, biking)
 - ✅ **自动打开浏览器** / Automatic browser opening
-- ✅ **OpenAPI文档** 🆕 / Interactive API documentation with Swagger UI
-- ✅ **旅游攻略规划** 🎉 / Travel guide planning with itinerary and budget estimation
+- ✅ **OpenAPI文档** / Interactive API documentation with Swagger UI
+- ✅ **旅游攻略规划** / Travel guide planning with itinerary and budget estimation
 
 ## 🏗️ 架构设计 / Architecture
 
@@ -72,9 +73,13 @@ The startup script will automatically:
 - ✅ 安装依赖包 / Install dependencies
 - ✅ 启动 API 服务器 / Start API server
 
-服务器将在 `http://localhost:8000` 启动。访问 `http://localhost:8000/docs` 查看交互式 API 文档。
+服务器将在 `http://localhost:8000` 启动。
 
-Server will start at `http://localhost:8000`. Visit `http://localhost:8000/docs` for interactive API documentation.
+Server will start at `http://localhost:8000`.
+
+**🌐 访问方式 / Access Methods:**
+- **浏览器对话界面**: `http://localhost:8000` (推荐 / Recommended)
+- **API 文档**: `http://localhost:8000/docs`
 
 ---
 
@@ -98,9 +103,13 @@ uv pip install -r requirements.txt
 python src/ai_navigator_api.py
 ```
 
-服务器将在 `http://localhost:8000` 启动。访问 `http://localhost:8000/docs` 查看交互式 API 文档。
+服务器将在 `http://localhost:8000` 启动。
 
-Server will start at `http://localhost:8000`. Visit `http://localhost:8000/docs` for interactive API documentation.
+Server will start at `http://localhost:8000`.
+
+**🌐 访问方式 / Access Methods:**
+- **浏览器对话界面**: `http://localhost:8000` (推荐 / Recommended)
+- **API 文档**: `http://localhost:8000/docs`
 
 或使用 uvicorn / Or use uvicorn:
 
@@ -200,15 +209,27 @@ Currently, the MCP protocol has been fully tested with Claude Desktop. Theoretic
 
 ## 📖 使用方法 / Usage
 
-### 方式一：通过 HTTP REST API（推荐）
+### 方式一：浏览器对话界面（最简单，推荐）🌟
 
-启动 API 服务器后，可以通过任何 HTTP 客户端访问导航功能，无需 Claude Desktop。
+启动服务器后，直接在浏览器中访问 `http://localhost:8000` 即可使用智能对话界面。
 
-After starting the API server, access navigation features via any HTTP client, without needing Claude Desktop.
+After starting the server, simply visit `http://localhost:8000` in your browser to use the intelligent dialog interface.
+
+**特点 / Features:**
+- 💬 对话式交互，自然流畅
+- 🎨 精美的现代化界面
+- ⚡ 实时响应，无需刷新
+- 📱 支持移动端访问
+
+### 方式二：通过 HTTP REST API
+
+可以通过任何 HTTP 客户端访问导航功能，无需 Claude Desktop。
+
+Access navigation features via any HTTP client, without needing Claude Desktop.
 
 详细的 API 文档请访问 `http://localhost:8000/docs` / For detailed API documentation, visit `http://localhost:8000/docs`
 
-### 方式二：通过 MCP 与 AI 助手交互（需要 Claude Desktop）
+### 方式三：通过 MCP 与 AI 助手交互（需要 Claude Desktop）
 
 配置完成后，你可以通过自然语言与 AI 助手对话来使用地图导航功能。
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Literal
 import webbrowser
@@ -9,6 +11,7 @@ import platform
 import subprocess
 import re
 import uvicorn
+import os
 from destination_reminder import DestinationReminder
 from speed_monitor import SpeedMonitor
 from travel_guide import TravelGuidePlanner, TravelGuide
@@ -17,7 +20,7 @@ from transportation_recommender import TransportationRecommender, RouteRecommend
 app = FastAPI(
     title="AI Navigation Assistant API",
     description="AI-powered navigation assistant supporting Baidu Maps and Amap with natural language interface, weather reminders, travel recommendations, speed monitoring, travel guide planning, and intelligent transportation recommendations",
-    version="1.4.0"
+    version="1.5.0"
 )
 
 reminder_service = DestinationReminder()
@@ -32,6 +35,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 class NavigationRequest(BaseModel):
     origin: str = Field(..., description="Starting point address")
@@ -283,11 +290,17 @@ def parse_natural_language(query: str) -> dict:
 
 @app.get("/", tags=["Info"])
 async def root():
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+    index_path = os.path.join(static_dir, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    
     return {
         "name": "AI Navigation Assistant API",
-        "version": "1.0.0",
+        "version": "1.5.0",
         "description": "AI-powered navigation assistant with natural language support",
         "endpoints": {
+            "web_ui": "/static/index.html - Browser-based dialog interface",
             "navigate": "/api/navigate - Basic navigation",
             "navigate_multi": "/api/navigate/multi - Multi-destination navigation",
             "location": "/api/location - Show location on map",
