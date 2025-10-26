@@ -52,6 +52,32 @@ An intelligent map navigation service based on MCP (Model Context Protocol) and 
 
 ## 🚀 快速开始 / Quick Start
 
+### ⚡ 一键启动（推荐）/ Quick Start (Recommended)
+
+#### Linux/Mac 用户
+
+```bash
+./start.sh
+```
+
+#### Windows 用户
+
+```bash
+start.bat
+```
+
+启动脚本会自动完成：
+The startup script will automatically:
+- ✅ 检查 Python 版本 / Check Python version (>=3.10)
+- ✅ 安装依赖包 / Install dependencies
+- ✅ 启动 API 服务器 / Start API server
+
+服务器将在 `http://localhost:8000` 启动。访问 `http://localhost:8000/docs` 查看交互式 API 文档。
+
+Server will start at `http://localhost:8000`. Visit `http://localhost:8000/docs` for interactive API documentation.
+
+---
+
 ### 方法一：使用 REST API 服务器（推荐，无需 Claude Desktop）
 
 #### 1. 安装依赖 / Install Dependencies
