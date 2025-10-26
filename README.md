@@ -21,6 +21,10 @@ An intelligent map navigation service based on MCP (Model Context Protocol) and 
 - ✅ **OpenAPI文档** / Interactive API documentation with Swagger UI
 - ✅ **旅游攻略规划** / Travel guide planning with itinerary and budget estimation
 - ✅ **高可用部署** 🆕 / High availability deployment with Docker, K8S, and load balancing
+- ✅ **性能监控系统** 🆕 / Real-time performance monitoring (CPU, memory, disk, requests)
+- ✅ **异常自动处理** 🆕 / Automatic exception handling with retry and circuit breaker
+- ✅ **智能扩缩容** 🆕 / Auto-scaling for Kubernetes and Docker Compose
+- ✅ **SRE告警通知** 🆕 / Multi-channel alerting system for SRE teams
 
 ## 🏗️ 架构设计 / Architecture
 
@@ -631,6 +635,189 @@ AI 自然语言导航（智能解析用户查询）。
 }
 ```
 
+#### 监控与管理相关 🆕
+
+#### 10. `GET /api/health/detailed`
+
+获取详细的系统健康状态，包括性能指标、异常统计、扩缩容状态等。
+
+**响应示例**:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-10-26T09:00:00Z",
+  "performance": {
+    "cpu_percent": 45.2,
+    "memory_percent": 62.8,
+    "disk_percent": 35.1,
+    "request_count": 1523,
+    "error_count": 3,
+    "avg_response_time_ms": 156.7
+  },
+  "exceptions": {
+    "total_count": 12,
+    "unresolved_count": 1,
+    "recent_exceptions": []
+  },
+  "scaling": {
+    "current_replicas": 3,
+    "recommendation": "maintain"
+  }
+}
+```
+
+#### 11. `GET /api/monitoring/status`
+
+获取实时性能监控状态。
+
+**响应示例**:
+```json
+{
+  "current_metrics": {
+    "cpu_percent": 45.2,
+    "memory_percent": 62.8,
+    "disk_percent": 35.1,
+    "request_count": 1523,
+    "error_count": 3,
+    "avg_response_time_ms": 156.7
+  },
+  "thresholds": {
+    "cpu_threshold": 80.0,
+    "memory_threshold": 85.0,
+    "disk_threshold": 90.0
+  },
+  "health_status": "healthy"
+}
+```
+
+#### 12. `GET /api/monitoring/metrics/history`
+
+获取历史性能指标数据（最近60分钟）。
+
+**查询参数**:
+- `limit` (可选): 返回的记录数量，默认60
+
+#### 13. `GET /api/monitoring/alerts`
+
+获取所有监控告警。
+
+**查询参数**:
+- `unresolved_only` (可选): 仅返回未解决的告警，默认false
+
+#### 14. `POST /api/monitoring/alerts/{metric_type}/resolve`
+
+解决特定类型的告警。
+
+**路径参数**:
+- `metric_type`: 指标类型 (cpu, memory, disk, error_rate, response_time)
+
+#### 15. `GET /api/exceptions/summary`
+
+获取异常处理摘要统计。
+
+**响应示例**:
+```json
+{
+  "total_exceptions": 12,
+  "unresolved_count": 1,
+  "by_severity": {
+    "critical": 0,
+    "high": 1,
+    "medium": 5,
+    "low": 6
+  },
+  "by_type": {
+    "ValueError": 5,
+    "ConnectionError": 4,
+    "TimeoutError": 3
+  }
+}
+```
+
+#### 16. `GET /api/exceptions/unresolved`
+
+获取所有未解决的异常。
+
+#### 17. `POST /api/exceptions/{exception_type}/resolve`
+
+标记特定类型的异常为已解决。
+
+#### 18. `GET /api/scaling/recommendation`
+
+获取智能扩缩容建议。
+
+**响应示例**:
+```json
+{
+  "current_replicas": 3,
+  "should_scale_up": false,
+  "should_scale_down": false,
+  "recommendation": "maintain",
+  "reason": ["所有指标正常"],
+  "current_metrics": {
+    "cpu_percent": 45.2,
+    "memory_percent": 62.8
+  }
+}
+```
+
+#### 19. `POST /api/scaling/evaluate`
+
+评估并执行扩缩容操作。
+
+**请求体**:
+```json
+{
+  "force_scale_up": false,
+  "force_scale_down": false
+}
+```
+
+#### 20. `POST /api/scaling/manual`
+
+手动设置副本数量。
+
+**请求体**:
+```json
+{
+  "replicas": 5
+}
+```
+
+#### 21. `GET /api/scaling/history`
+
+获取扩缩容历史记录。
+
+**查询参数**:
+- `limit` (可选): 返回的记录数量，默认20
+
+#### 22. `GET /api/scaling/summary`
+
+获取扩缩容状态摘要。
+
+#### 23. `GET /api/notifications/history`
+
+获取SRE告警通知历史。
+
+**查询参数**:
+- `limit` (可选): 返回的记录数量，默认50
+
+#### 24. `GET /api/notifications/stats`
+
+获取通知统计信息。
+
+#### 25. `POST /api/notifications/test`
+
+发送测试通知。
+
+**请求体**:
+```json
+{
+  "channel": "log",
+  "message": "Test notification"
+}
+```
+
 ## 🔧 技术实现 / Technical Implementation
 
 ### MCP 协议
@@ -646,6 +833,8 @@ AI 自然语言导航（智能解析用户查询）。
 - **uvicorn**: ASGI 服务器
 - **webbrowser**: 标准库，用于打开浏览器
 - **urllib**: URL 编码处理
+- **psutil**: 系统性能监控
+- **asyncio**: 异步任务处理
 
 ### AI 自然语言理解
 
@@ -668,6 +857,50 @@ https://map.baidu.com/direction?origin={起点}&destination={终点}&mode={模�
 ```
 https://uri.amap.com/navigation?to={终点}&mode={模式}
 ```
+
+### 性能监控与异常处理系统 🆕
+
+本项目集成了企业级的性能监控和异常自动处理系统：
+
+#### 1. **结构化日志系统** (`structured_logger.py`)
+- JSON 格式日志输出，便于日志分析
+- 支持多级别日志（DEBUG, INFO, WARNING, ERROR, CRITICAL）
+- 自动记录请求上下文和性能指标
+
+#### 2. **实时性能监控** (`performance_monitor.py`)
+- **CPU 监控**: 实时跟踪 CPU 使用率，超过阈值(80%)自动告警
+- **内存监控**: 监控内存使用情况，超过阈值(85%)自动告警
+- **磁盘监控**: 跟踪磁盘空间使用，超过阈值(90%)自动告警
+- **请求统计**: 记录请求数量、错误率、平均响应时间
+- **历史数据**: 保留最近60分钟的性能指标历史
+- **智能告警**: 自动检测异常并生成告警
+
+#### 3. **异常自动处理** (`exception_handler.py`)
+- **自动重试机制**: 最多重试3次，支持指数退避
+- **熔断器模式**: 连续失败5次后自动熔断60秒，防止雪崩
+- **异常分级**: LOW、MEDIUM、HIGH、CRITICAL 四个级别
+- **异常追踪**: 完整记录异常堆栈和上下文信息
+- **自动恢复**: 异常解决后自动记录恢复时间
+
+#### 4. **智能扩缩容** (`auto_scaler.py`)
+- **多平台支持**: Kubernetes、Docker Compose、Systemd
+- **自动扩容**: CPU/内存/磁盘/错误率超标时自动扩容
+- **自动缩容**: 负载降低时自动缩容，节省资源
+- **安全限制**: 最小3个副本，最大10个副本
+- **扩缩容历史**: 记录所有扩缩容操作和原因
+
+#### 5. **SRE 告警通知** (`sre_notifier.py`)
+- **多渠道支持**: 日志、邮件、Webhook、PagerDuty 等
+- **智能降噪**: 同类型告警5分钟内只发送一次
+- **告警历史**: 完整记录所有告警通知
+- **测试功能**: 支持发送测试通知验证配置
+
+#### 系统特性
+- ✅ **实时监控**: 每10秒采集一次性能指标
+- ✅ **自动告警**: 超过阈值自动发送告警通知
+- ✅ **自动恢复**: 异常自动重试，失败自动熔断
+- ✅ **智能扩缩容**: 根据负载自动调整实例数量
+- ✅ **零停机运维**: 支持滚动更新和健康检查
 
 ## 🎯 设计优势 / Design Advantages
 
