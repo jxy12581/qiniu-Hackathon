@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI导航助手 - 智能对话</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 
+                         'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 800px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.assistant {
+            justify-content: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.assistant .message-bubble {
+            background: white;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-box {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-box:focus {
+            border-color: #667eea;
+        }
+
+        .send-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-button:active {
+            transform: translateY(0);
+        }
+
+        .send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 5px;
+            padding: 12px 16px;
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #999;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .quick-actions {
+            padding: 15px 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .quick-action-btn {
+            background: #f0f0f0;
+            border: 1px solid #e0e0e0;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-action-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .success-message {
+            color: #27ae60;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .link-button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 8px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .link-button:hover {
+            background: #2980b9;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                height: 100vh;
+                border-radius: 0;
+            }
+
+            .message-bubble {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗺️ AI导航助手</h1>
+            <p>智能对话式导航服务</p>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="message assistant">
+                <div class="message-bubble">
+                    👋 你好！我是AI导航助手，可以帮你规划路线、查询旅游攻略、推荐交通工具等。试试问我：
+                    <br><br>
+                    • "从北京天安门到上海东方明珠"<br>
+                    • "帮我规划杭州3天游"<br>
+                    • "从广州到深圳用什么交通工具？"
+                </div>
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <button class="quick-action-btn" onclick="sendQuickMessage('从北京天安门到上海东方明珠')">📍 北京到上海</button>
+            <button class="quick-action-btn" onclick="sendQuickMessage('帮我规划杭州3天游')">🗺️ 杭州3日游</button>
+            <button class="quick-action-btn" onclick="sendQuickMessage('从广州到深圳用什么交通工具')">🚗 交通推荐</button>
+        </div>
+
+        <div class="input-container">
+            <input type="text" class="input-box" id="userInput" placeholder="输入你的问题..." onkeypress="handleKeyPress(event)">
+            <button class="send-button" id="sendButton" onclick="sendMessage()">发送</button>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
+        const API_BASE = window.location.origin;
+
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+            bubbleDiv.innerHTML = content;
+            
+            messageDiv.appendChild(bubbleDiv);
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message assistant';
+            messageDiv.id = 'typingIndicator';
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble typing-indicator';
+            bubbleDiv.innerHTML = '<span></span><span></span><span></span>';
+            
+            messageDiv.appendChild(bubbleDiv);
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        async function processUserQuery(query) {
+            try {
+                if (query.includes('旅游') || query.includes('攻略') || query.includes('日游') || query.includes('天游')) {
+                    const response = await fetch(`${API_BASE}/api/travel/guide/ai`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ query: query })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('请求失败');
+                    }
+
+                    const data = await response.json();
+                    
+                    let message = `<strong>${data.message}</strong><br><br>`;
+                    message += `📍 目的地：${data.guide.destination}<br>`;
+                    message += `📅 行程：${data.guide.duration_days}天<br>`;
+                    message += `🎨 风格：${data.guide.travel_style}<br>`;
+                    message += `🌤️ 最佳季节：${data.guide.best_season}<br><br>`;
+                    
+                    message += `<strong>📋 行程安排：</strong><br>`;
+                    data.guide.itinerary.forEach(day => {
+                        message += `<br><strong>第${day.day}天 ${day.date || ''}:</strong><br>`;
+                        message += day.attractions.join(' → ') + '<br>';
+                    });
+                    
+                    message += `<br><strong>💰 预算估算：</strong><br>`;
+                    message += `总计：¥${data.guide.budget_estimate.total}<br>`;
+                    message += `(交通: ¥${data.guide.budget_estimate.transportation}, `;
+                    message += `住宿: ¥${data.guide.budget_estimate.accommodation}, `;
+                    message += `餐饮: ¥${data.guide.budget_estimate.food})`;
+                    
+                    addMessage(message);
+                } else if (query.includes('交通') || query.includes('怎么去') || query.includes('用什么')) {
+                    const response = await fetch(`${API_BASE}/api/transportation/recommend/ai`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ query: query })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('请求失败');
+                    }
+
+                    const data = await response.json();
+                    const rec = data.recommendation;
+                    
+                    let message = `<strong>${data.message}</strong><br><br>`;
+                    message += `🎯 推荐方式：${rec.recommended_mode.name}<br>`;
+                    message += `💰 估计费用：¥${rec.recommended_mode.estimated_cost_range}<br>`;
+                    message += `⏱️ 预计时间：${rec.recommended_mode.estimated_time}<br>`;
+                    message += `📝 说明：${rec.recommended_mode.description}<br><br>`;
+                    message += `<strong>推荐理由：</strong><br>${rec.reasoning}`;
+                    
+                    if (rec.alternatives && rec.alternatives.length > 0) {
+                        message += `<br><br><strong>🔄 其他选择：</strong><br>`;
+                        rec.alternatives.forEach(alt => {
+                            message += `• ${alt.name} (¥${alt.estimated_cost_range}, ${alt.estimated_time})<br>`;
+                        });
+                    }
+                    
+                    addMessage(message);
+                } else {
+                    const response = await fetch(`${API_BASE}/api/ai/navigate`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ query: query })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || '请求失败');
+                    }
+
+                    const data = await response.json();
+                    
+                    let message = `<strong>✅ ${data.message}</strong><br><br>`;
+                    message += `📍 起点：${data.details.origin}<br>`;
+                    
+                    if (data.details.destinations) {
+                        message += `📍 目的地：${data.details.destinations.join(' → ')}<br>`;
+                        message += `🚏 途经站点：${data.details.total_stops}个<br>`;
+                    } else {
+                        message += `📍 终点：${data.details.destination}<br>`;
+                    }
+                    
+                    message += `🚗 方式：${data.details.mode}<br>`;
+                    message += `🗺️ 地图：${data.details.map_type.toUpperCase()}<br><br>`;
+                    message += `<a href="${data.url}" target="_blank" class="link-button">🔗 在浏览器中打开地图</a>`;
+                    
+                    addMessage(message);
+                }
+            } catch (error) {
+                addMessage(`<span class="error-message">❌ 处理失败：${error.message}</span>`);
+            }
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            addMessage(message, true);
+            userInput.value = '';
+            sendButton.disabled = true;
+
+            showTypingIndicator();
+
+            await processUserQuery(message);
+
+            hideTypingIndicator();
+            sendButton.disabled = false;
+            userInput.focus();
+        }
+
+        function sendQuickMessage(message) {
+            userInput.value = message;
+            sendMessage();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        window.onload = () => {
+            userInput.focus();
+        };
+    </script>
+</body>
+</html>
