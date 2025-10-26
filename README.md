@@ -12,12 +12,14 @@ An intelligent map navigation service based on MCP (Model Context Protocol) and 
 - ✅ **支持双地图平台** / Support for dual map platforms (Baidu Maps & Amap)
 - ✅ **智能导航** / Intelligent navigation from point A to point B
 - ✅ **多目的地路线规划** / Multi-destination route planning with optimization
+- ✅ **多天旅行攻略** 🆕 / Multi-day travel itinerary planning with detailed schedules
 - ✅ **自然语言交互** / Natural language interaction via AI assistants
-- ✅ **HTTP REST API** 🆕 / RESTful API for programmatic access
-- ✅ **AI自然语言理解** 🆕 / AI-powered natural language query parsing
+- ✅ **HTTP REST API** / RESTful API for programmatic access
+- ✅ **AI自然语言理解** / AI-powered natural language query parsing
+- ✅ **天气信息和旅游建议** / Weather information and travel recommendations
 - ✅ **多种交通方式** / Multiple transportation modes (driving, transit, walking, biking)
 - ✅ **自动打开浏览器** / Automatic browser opening
-- ✅ **OpenAPI文档** 🆕 / Interactive API documentation with Swagger UI
+- ✅ **OpenAPI文档** / Interactive API documentation with Swagger UI
 
 ## 🏗️ 架构设计 / Architecture
 
@@ -225,6 +227,12 @@ After configuration, you can use natural language to interact with the AI assist
 
 **AI助手**: 将调用 `navigate_amap_multi` 工具并启用路线优化，计算访问所有地点的最短路径。
 
+### 示例 7: 获取多天旅行攻略 🆕
+
+**用户**: 帮我制定从北京到昆明的10天旅行攻略
+
+**AI助手**: 将调用旅行攻略 API，返回详细的10天行程安排，包括每日活动、景点推荐、美食建议、住宿安排和预计费用。
+
 ---
 
 ## 🔌 REST API 详细示例 / Detailed REST API Examples
@@ -301,6 +309,37 @@ print(response.json())
 
 ```bash
 python api_examples.py
+```
+
+#### API 示例 5: 获取旅行攻略列表 🆕
+
+```bash
+curl -X GET "http://localhost:8000/api/itinerary/list"
+```
+
+#### API 示例 6: 获取北京到昆明10天旅行攻略 🆕
+
+```bash
+curl -X GET "http://localhost:8000/api/itinerary/北京-昆明-10天"
+```
+
+#### API 示例 7: 获取攻略并打开导航 🆕
+
+```bash
+curl -X POST "http://localhost:8000/api/itinerary/navigate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": "北京",
+    "destination": "昆明",
+    "mode": "driving",
+    "map_type": "baidu"
+  }'
+```
+
+运行旅行攻略示例代码：
+
+```bash
+python itinerary_api_examples.py
 ```
 
 ## 🛠️ 可用功能 / Available Features
@@ -436,7 +475,81 @@ AI 自然语言导航（智能解析用户查询）。
 - "用百度地图/高德地图导航到{终点}"
 - "我要从{起点}出发，依次去{地点1}、{地点2}、{地点3}"
 
-#### 5. `GET /health`
+#### 5. `GET /api/itinerary/list` 🆕
+
+获取所有可用的旅行攻略列表。
+
+**返回示例**:
+```json
+{
+  "success": true,
+  "count": 1,
+  "itineraries": [
+    {
+      "route_key": "北京-昆明-10天",
+      "title": "北京到昆明10天深度游",
+      "description": "探索历史文化名城北京,再前往四季如春的昆明...",
+      "duration_days": 10,
+      "origin": "北京",
+      "destination": "昆明",
+      "estimated_cost": "6000-9500元"
+    }
+  ]
+}
+```
+
+#### 6. `GET /api/itinerary/{route_key}` 🆕
+
+获取指定路线的详细旅行攻略。
+
+**路径参数**:
+- `route_key`: 路线标识符，例如 "北京-昆明-10天"
+
+**返回示例**:
+```json
+{
+  "success": true,
+  "route_key": "北京-昆明-10天",
+  "itinerary": {
+    "title": "北京到昆明10天深度游",
+    "duration_days": 10,
+    "days": [...],
+    "transportation": {...},
+    "packing_list": [...],
+    "important_tips": [...]
+  },
+  "formatted_message": "# 北京到昆明10天深度游\n\n..."
+}
+```
+
+#### 7. `POST /api/itinerary/navigate` 🆕
+
+获取旅行攻略并打开导航。
+
+**请求体**:
+```json
+{
+  "origin": "北京",
+  "destination": "昆明",
+  "mode": "driving",
+  "map_type": "baidu"
+}
+```
+
+**返回示例**:
+```json
+{
+  "success": true,
+  "navigation_url": "https://map.baidu.com/direction?...",
+  "navigation_opened": true,
+  "has_itinerary": true,
+  "route_key": "北京-昆明-10天",
+  "itinerary": {...},
+  "formatted_message": "..."
+}
+```
+
+#### 8. `GET /health`
 
 健康检查端点。
 

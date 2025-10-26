@@ -10,14 +10,16 @@ import subprocess
 import re
 import uvicorn
 from destination_reminder import DestinationReminder
+from travel_itinerary import TravelItinerary
 
 app = FastAPI(
     title="AI Navigation Assistant API",
-    description="AI-powered navigation assistant supporting Baidu Maps and Amap with natural language interface, weather reminders, and travel recommendations",
-    version="1.1.0"
+    description="AI-powered navigation assistant supporting Baidu Maps and Amap with natural language interface, weather reminders, travel recommendations, and multi-day itinerary planning",
+    version="1.2.0"
 )
 
 reminder_service = DestinationReminder()
+itinerary_service = TravelItinerary()
 
 app.add_middleware(
     CORSMiddleware,
@@ -484,6 +486,118 @@ async def get_destination_info(location: str):
                 "recommendations": info["recommendations_message"]
             }
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/itinerary/{route_key}", tags=["Travel Itinerary"])
+async def get_travel_itinerary(route_key: str):
+    """
+    Get a predefined travel itinerary
+    
+    Args:
+        route_key: Route identifier (e.g., "北京-昆明-10天")
+        
+    Returns:
+        Complete travel itinerary with daily schedules
+    """
+    try:
+        itinerary = itinerary_service.get_itinerary(route_key)
+        if not itinerary:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"未找到路线 '{route_key}' 的旅行攻略。可用路线: {list(itinerary_service.itineraries.keys())}"
+            )
+        
+        return {
+            "success": True,
+            "route_key": route_key,
+            "itinerary": itinerary,
+            "formatted_message": itinerary_service.generate_itinerary_message(itinerary)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/itinerary/list", tags=["Travel Itinerary"])
+async def list_available_itineraries():
+    """
+    List all available predefined itineraries
+    
+    Returns:
+        List of available itinerary route keys and basic info
+    """
+    try:
+        itineraries_info = []
+        for key, itinerary in itinerary_service.itineraries.items():
+            itineraries_info.append({
+                "route_key": key,
+                "title": itinerary["title"],
+                "description": itinerary["description"],
+                "duration_days": itinerary["duration_days"],
+                "origin": itinerary["origin"],
+                "destination": itinerary["destination"],
+                "estimated_cost": itinerary["total_estimated_cost"]
+            })
+        
+        return {
+            "success": True,
+            "count": len(itineraries_info),
+            "itineraries": itineraries_info
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/itinerary/navigate", tags=["Travel Itinerary"])
+async def get_itinerary_with_navigation(request: NavigationRequest):
+    """
+    Get travel itinerary and open navigation
+    
+    Args:
+        request: NavigationRequest with origin and destination
+        
+    Returns:
+        Itinerary if available, plus navigation URL
+    """
+    try:
+        route_key = f"{request.origin}-{request.destination}-10天"
+        itinerary = itinerary_service.get_itinerary(route_key)
+        
+        origin_encoded = quote(request.origin.strip())
+        destination_encoded = quote(request.destination.strip())
+        
+        if request.map_type == "baidu":
+            url = f"https://map.baidu.com/direction?origin={origin_encoded}&destination={destination_encoded}&mode={request.mode}"
+        else:
+            mode_map = {
+                "driving": "car",
+                "transit": "bus", 
+                "walking": "walk",
+                "riding": "bike"
+            }
+            amap_mode = mode_map.get(request.mode, "car")
+            url = f"https://uri.amap.com/navigation?from={origin_encoded}&to={destination_encoded}&src=myapp&coordinate=gaode&callnative=1&mode={amap_mode}"
+        
+        webbrowser.open(url)
+        
+        result = {
+            "success": True,
+            "navigation_url": url,
+            "navigation_opened": True,
+            "origin": request.origin,
+            "destination": request.destination
+        }
+        
+        if itinerary:
+            result["has_itinerary"] = True
+            result["itinerary"] = itinerary
+            result["route_key"] = route_key
+            result["formatted_message"] = itinerary_service.generate_itinerary_message(itinerary)
+        else:
+            result["has_itinerary"] = False
+            result["message"] = f"已打开导航,但暂无 '{route_key}' 的预定义旅行攻略"
+        
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
