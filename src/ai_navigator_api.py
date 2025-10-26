@@ -10,14 +10,16 @@ import subprocess
 import re
 import uvicorn
 from destination_reminder import DestinationReminder
+from speed_monitor import SpeedMonitor
 
 app = FastAPI(
     title="AI Navigation Assistant API",
-    description="AI-powered navigation assistant supporting Baidu Maps and Amap with natural language interface, weather reminders, and travel recommendations",
-    version="1.1.0"
+    description="AI-powered navigation assistant supporting Baidu Maps and Amap with natural language interface, weather reminders, travel recommendations, and speed monitoring",
+    version="1.2.0"
 )
 
 reminder_service = DestinationReminder()
+speed_monitor = SpeedMonitor()
 
 app.add_middleware(
     CORSMiddleware,
@@ -70,6 +72,28 @@ class NavigationResponse(BaseModel):
     success: bool
     message: str
     url: str
+    details: dict
+
+class SpeedCheckRequest(BaseModel):
+    current_speed: float = Field(..., description="Current speed in km/h")
+    road_type: Optional[Literal["城市道路", "城市快速路", "普通公路", "高速公路", "学校区域", "居民区"]] = Field(
+        None,
+        description="Road type"
+    )
+    location: Optional[str] = Field(None, description="Location description")
+    speed_limit: Optional[int] = Field(None, description="Specific speed limit in km/h")
+
+class SpeedReminderRequest(BaseModel):
+    origin: str = Field(..., description="Starting point address")
+    destination: str = Field(..., description="Destination address")
+    route_type: Optional[Literal["driving", "riding", "walking"]] = Field(
+        "driving",
+        description="Navigation mode"
+    )
+
+class SpeedResponse(BaseModel):
+    success: bool
+    message: str
     details: dict
 
 def auto_play_music():
@@ -483,6 +507,58 @@ async def get_destination_info(location: str):
                 "weather": info["weather_message"],
                 "recommendations": info["recommendations_message"]
             }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/speed/check", response_model=SpeedResponse, tags=["Speed Monitoring"])
+async def check_speed(request: SpeedCheckRequest):
+    try:
+        speed_check = speed_monitor.check_speed(
+            current_speed=request.current_speed,
+            speed_limit=request.speed_limit,
+            road_type=request.road_type,
+            location=request.location
+        )
+        
+        alert_message = speed_monitor.format_speed_alert(speed_check)
+        
+        return SpeedResponse(
+            success=True,
+            message=alert_message,
+            details=speed_check
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/speed/reminder", response_model=SpeedResponse, tags=["Speed Monitoring"])
+async def get_speed_reminder(request: SpeedReminderRequest):
+    try:
+        reminder_message = speed_monitor.create_speed_reminder_message(
+            origin=request.origin,
+            destination=request.destination,
+            route_type=request.route_type
+        )
+        
+        speed_info = speed_monitor.get_navigation_speed_info(request.route_type)
+        
+        return SpeedResponse(
+            success=True,
+            message=reminder_message,
+            details=speed_info
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/speed/limits/{city}", tags=["Speed Monitoring"])
+async def get_city_speed_limits(city: str):
+    try:
+        limits = speed_monitor.get_speed_limit_by_city(city)
+        return {
+            "success": True,
+            "city": city,
+            "speed_limits": limits,
+            "message": f"查询到{city}的速度限制信息"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
