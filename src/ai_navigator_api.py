@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -12,21 +12,56 @@ import subprocess
 import re
 import uvicorn
 import os
+import time
+import asyncio
 from destination_reminder import DestinationReminder
 from speed_monitor import SpeedMonitor
 from travel_guide import TravelGuidePlanner, TravelGuide
 from transportation_recommender import TransportationRecommender, RouteRecommendation, TransportationOption
+from performance_monitor import PerformanceMonitor
+from exception_handler import ExceptionHandler
+from sre_notifier import SRENotifier, NotificationConfig
+from auto_scaler import AutoScaler
+from structured_logger import StructuredLogger
 
 app = FastAPI(
     title="AI Navigation Assistant API",
-    description="AI-powered navigation assistant supporting Baidu Maps and Amap with natural language interface, weather reminders, travel recommendations, speed monitoring, travel guide planning, and intelligent transportation recommendations",
-    version="1.5.0"
+    description="AI-powered navigation assistant supporting Baidu Maps and Amap with natural language interface, weather reminders, travel recommendations, speed monitoring, travel guide planning, intelligent transportation recommendations, and performance monitoring with auto-scaling",
+    version="2.0.0"
 )
 
 reminder_service = DestinationReminder()
 speed_monitor = SpeedMonitor()
 travel_planner = TravelGuidePlanner()
 transport_recommender = TransportationRecommender()
+
+perf_monitor = PerformanceMonitor(
+    cpu_threshold=80.0,
+    memory_threshold=85.0,
+    error_rate_threshold=0.05,
+    response_time_threshold_ms=1000.0
+)
+
+exception_handler = ExceptionHandler(
+    max_retry_attempts=3,
+    circuit_breaker_threshold=5
+)
+
+notifier_config = NotificationConfig(
+    enabled=False
+)
+sre_notifier = SRENotifier(config=notifier_config)
+
+auto_scaler = AutoScaler(
+    deployment_type=os.getenv("DEPLOYMENT_TYPE", "kubernetes"),
+    min_replicas=3,
+    max_replicas=10,
+    deployment_name="ai-navigator"
+)
+
+struct_logger = StructuredLogger("ai-navigator", log_level=os.getenv("LOG_LEVEL", "INFO"))
+
+perf_monitor.start_monitoring(interval_seconds=30)
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,6 +70,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def monitoring_middleware(request: Request, call_next):
+    perf_monitor.increment_connections()
+    start_time = time.time()
+    is_error = False
+    
+    try:
+        response = await call_next(request)
+        is_error = response.status_code >= 400
+        return response
+    except Exception as e:
+        is_error = True
+        struct_logger.error(f"Request failed: {str(e)}", path=request.url.path, method=request.method)
+        raise
+    finally:
+        response_time_ms = (time.time() - start_time) * 1000
+        perf_monitor.record_request(response_time_ms, is_error)
+        perf_monitor.decrement_connections()
+        
+        struct_logger.info(
+            f"{request.method} {request.url.path}",
+            response_time_ms=round(response_time_ms, 2),
+            status="error" if is_error else "success"
+        )
 
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 if os.path.exists(static_dir):
@@ -821,6 +881,294 @@ async def get_transportation_modes():
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/monitoring/status", tags=["Monitoring"])
+async def get_monitoring_status():
+    """
+    获取系统性能监控状态,包括CPU、内存、请求统计等指标
+    """
+    try:
+        status = perf_monitor.get_current_status()
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/monitoring/metrics/history", tags=["Monitoring"])
+async def get_metrics_history(minutes: Optional[int] = 60):
+    """
+    获取历史性能指标数据
+    
+    Args:
+        minutes: 获取最近N分钟的数据(默认60分钟)
+    """
+    try:
+        metrics = perf_monitor.get_metrics_history(minutes=minutes)
+        return {
+            "success": True,
+            "data": metrics,
+            "count": len(metrics),
+            "time_range_minutes": minutes
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/monitoring/alerts", tags=["Monitoring"])
+async def get_alerts(include_resolved: bool = False):
+    """
+    获取系统告警列表
+    
+    Args:
+        include_resolved: 是否包含已解决的告警
+    """
+    try:
+        alerts = perf_monitor.get_all_alerts(include_resolved=include_resolved)
+        return {
+            "success": True,
+            "alerts": alerts,
+            "count": len(alerts)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/monitoring/alerts/{metric_type}/resolve", tags=["Monitoring"])
+async def resolve_alert(metric_type: str):
+    """
+    手动解决指定类型的告警
+    """
+    try:
+        perf_monitor.resolve_alert(metric_type)
+        return {
+            "success": True,
+            "message": f"已解决 {metric_type} 类型的告警"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/exceptions/summary", tags=["Exception Handling"])
+async def get_exception_summary():
+    """
+    获取异常处理统计摘要
+    """
+    try:
+        summary = exception_handler.get_exception_summary()
+        return summary
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/exceptions/unresolved", tags=["Exception Handling"])
+async def get_unresolved_exceptions():
+    """
+    获取未解决的异常列表
+    """
+    try:
+        exceptions = exception_handler.get_unresolved_exceptions()
+        return {
+            "success": True,
+            "exceptions": exceptions,
+            "count": len(exceptions)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/exceptions/{exception_type}/resolve", tags=["Exception Handling"])
+async def mark_exception_resolved(exception_type: str):
+    """
+    标记指定类型的异常为已解决
+    """
+    try:
+        count = exception_handler.mark_resolved(exception_type)
+        return {
+            "success": True,
+            "message": f"已标记 {count} 个 {exception_type} 异常为已解决",
+            "resolved_count": count
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/scaling/recommendation", tags=["Auto Scaling"])
+async def get_scaling_recommendation():
+    """
+    获取自动扩缩容建议
+    """
+    try:
+        recommendation = perf_monitor.get_scaling_recommendation()
+        return recommendation
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/scaling/evaluate", tags=["Auto Scaling"])
+async def evaluate_and_scale():
+    """
+    评估系统状态并执行自动扩缩容(如需要)
+    """
+    try:
+        recommendation = perf_monitor.get_scaling_recommendation()
+        
+        scaling_event = auto_scaler.evaluate_scaling(recommendation)
+        
+        if scaling_event.success and scaling_event.action != "no_action":
+            report = auto_scaler.generate_scaling_report(scaling_event)
+            sre_notifier.send_scaling_report(report)
+        
+        return {
+            "success": True,
+            "event": {
+                "action": scaling_event.action,
+                "reason": scaling_event.reason,
+                "before": scaling_event.before,
+                "after": scaling_event.after,
+                "success": scaling_event.success
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/scaling/manual", tags=["Auto Scaling"])
+async def manual_scale(replicas: int, reason: str = "Manual scaling request"):
+    """
+    手动触发扩缩容
+    
+    Args:
+        replicas: 目标副本数
+        reason: 扩缩容原因
+    """
+    try:
+        event = auto_scaler.manual_scale(replicas, reason)
+        
+        if event.success:
+            report = auto_scaler.generate_scaling_report(event)
+            sre_notifier.send_scaling_report(report)
+        
+        return {
+            "success": event.success,
+            "message": f"扩缩容操作{'成功' if event.success else '失败'}",
+            "event": {
+                "action": event.action,
+                "before": event.before,
+                "after": event.after,
+                "error": event.error_message
+            }
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/scaling/history", tags=["Auto Scaling"])
+async def get_scaling_history(limit: int = 20):
+    """
+    获取扩缩容历史记录
+    """
+    try:
+        history = auto_scaler.get_scaling_history(limit=limit)
+        return {
+            "success": True,
+            "history": history,
+            "count": len(history)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/scaling/summary", tags=["Auto Scaling"])
+async def get_scaling_summary():
+    """
+    获取扩缩容统计摘要
+    """
+    try:
+        summary = auto_scaler.get_scaling_summary()
+        return summary
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/notifications/history", tags=["SRE Notifications"])
+async def get_notification_history(limit: int = 50):
+    """
+    获取SRE通知历史记录
+    """
+    try:
+        history = sre_notifier.get_notification_history(limit=limit)
+        return {
+            "success": True,
+            "history": history,
+            "count": len(history)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/notifications/stats", tags=["SRE Notifications"])
+async def get_notification_stats():
+    """
+    获取SRE通知统计信息
+    """
+    try:
+        stats = sre_notifier.get_notification_stats()
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/notifications/test", tags=["SRE Notifications"])
+async def send_test_notification():
+    """
+    发送测试通知
+    """
+    try:
+        sre_notifier.send_alert(
+            subject="测试通知",
+            message="这是一条测试通知,用于验证通知系统配置是否正确",
+            severity="info"
+        )
+        return {
+            "success": True,
+            "message": "测试通知已发送"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/health/detailed", tags=["Info"])
+async def detailed_health_check():
+    """
+    详细健康检查,包含所有子系统状态
+    """
+    try:
+        perf_status = perf_monitor.get_current_status()
+        exc_summary = exception_handler.get_exception_summary()
+        scaling_summary = auto_scaler.get_scaling_summary()
+        
+        overall_status = "healthy"
+        if perf_status.get("status") == "critical" or exc_summary.get("severity_distribution", {}).get("critical", 0) > 0:
+            overall_status = "critical"
+        elif perf_status.get("status") == "warning":
+            overall_status = "degraded"
+        
+        return {
+            "status": overall_status,
+            "service": "AI Navigation Assistant",
+            "version": "2.0.0",
+            "timestamp": perf_status.get("timestamp"),
+            "components": {
+                "performance_monitoring": {
+                    "status": perf_status.get("status"),
+                    "metrics": perf_status.get("metrics"),
+                    "alerts": perf_status.get("alerts")
+                },
+                "exception_handling": {
+                    "total_exceptions": exc_summary.get("total_exceptions"),
+                    "unresolved": exc_summary.get("unresolved_exceptions"),
+                    "circuit_breakers": exc_summary.get("circuit_breakers")
+                },
+                "auto_scaling": {
+                    "current_replicas": scaling_summary.get("current_replicas"),
+                    "deployment_type": scaling_summary.get("deployment_type"),
+                    "last_scaling": scaling_summary.get("last_scaling")
+                }
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "service": "AI Navigation Assistant",
+            "error": str(e)
+        }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
