@@ -20,6 +20,7 @@ An intelligent map navigation service based on MCP (Model Context Protocol) and 
 - ✅ **自动打开浏览器** / Automatic browser opening
 - ✅ **OpenAPI文档** / Interactive API documentation with Swagger UI
 - ✅ **旅游攻略规划** / Travel guide planning with itinerary and budget estimation
+- ✅ **高可用部署** 🆕 / High availability deployment with Docker, K8S, and load balancing
 
 ## 🏗️ 架构设计 / Architecture
 
@@ -710,6 +711,78 @@ Tool(
 ```bash
 npx @modelcontextprotocol/inspector python src/map_navigator_mcp.py
 ```
+
+## 🚀 高可用部署 / High Availability Deployment
+
+本项目支持多种高可用部署方案，避免单点故障。详细部署指南请参阅 [HIGH_AVAILABILITY_DEPLOYMENT.md](./HIGH_AVAILABILITY_DEPLOYMENT.md)。
+
+This project supports various high availability deployment options to eliminate single points of failure. For detailed deployment instructions, see [HIGH_AVAILABILITY_DEPLOYMENT.md](./HIGH_AVAILABILITY_DEPLOYMENT.md).
+
+### 部署选项 / Deployment Options
+
+#### 1. Docker 容器化 / Docker Containerization
+
+```bash
+# 构建镜像 / Build image
+docker build -t ai-navigator:latest .
+
+# 运行容器 / Run container
+docker run -d -p 8000:8000 --restart unless-stopped ai-navigator:latest
+```
+
+#### 2. Docker Compose（推荐用于开发和小规模生产）
+
+```bash
+# 启动3个应用实例 + Nginx 负载均衡器
+docker-compose up -d
+
+# 访问 / Access
+curl http://localhost/health
+```
+
+特性:
+- 3个应用副本 + Nginx 负载均衡
+- 自动健康检查和重启
+- 轮询负载均衡算法
+
+#### 3. Kubernetes（推荐用于生产环境）
+
+```bash
+# 快速部署 / Quick deployment
+kubectl apply -k k8s/
+
+# 查看状态 / Check status
+kubectl get pods,svc,hpa
+```
+
+特性:
+- 最少3个副本，最多10个副本（HPA 自动扩缩容）
+- 滚动更新（零停机）
+- Pod 反亲和性（跨节点分布）
+- 完整的健康检查（Liveness, Readiness, Startup）
+- 资源限制和请求
+- Ingress 路由
+
+#### 4. 物理机/虚拟机 + Systemd
+
+```bash
+# 创建多个 Systemd 服务实例
+sudo systemctl enable ai-navigator@8000
+sudo systemctl enable ai-navigator@8001
+sudo systemctl start ai-navigator@{8000,8001}
+
+# 配置 Nginx 负载均衡
+sudo systemctl reload nginx
+```
+
+### 高可用特性 / HA Features
+
+✅ **无单点故障** - 多副本部署  
+✅ **自动故障恢复** - 失败实例自动重启  
+✅ **负载均衡** - Nginx/K8S Service 自动分发流量  
+✅ **健康检查** - 主动监控和故障检测  
+✅ **水平扩展** - 根据负载自动增减实例  
+✅ **滚动更新** - 零停机部署新版本  
 
 ## 🤝 贡献 / Contributing
 
