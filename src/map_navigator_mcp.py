@@ -10,8 +10,10 @@ import mcp.types as types
 from itertools import permutations
 import platform
 import subprocess
+from destination_reminder import DestinationReminder
 
 app = Server("map-navigator")
+reminder_service = DestinationReminder()
 
 def auto_play_music():
     system = platform.system()
@@ -198,6 +200,48 @@ async def handle_list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["origin", "destinations"]
+            }
+        ),
+        Tool(
+            name="get_destination_weather",
+            description="Get weather information and forecast for a destination. Provides current conditions and 3-day forecast including temperature, weather conditions, humidity, wind, and UV index.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "Location to get weather for (e.g., '北京', '上海', 'Beijing')"
+                    }
+                },
+                "required": ["location"]
+            }
+        ),
+        Tool(
+            name="get_travel_recommendations",
+            description="Get travel recommendations for a destination including best visiting times, popular attractions, local cuisine, transportation tips, and travel advice.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "Location to get recommendations for (e.g., '北京', '上海', 'Beijing')"
+                    }
+                },
+                "required": ["location"]
+            }
+        ),
+        Tool(
+            name="get_destination_info",
+            description="Get comprehensive destination information including both weather forecast and travel recommendations. Combines weather data with tourism tips, attractions, cuisine, and best visiting times.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "Location to get information for (e.g., '北京', '上海', 'Beijing')"
+                    }
+                },
+                "required": ["location"]
             }
         )
     ]
@@ -390,6 +434,54 @@ async def handle_call_tool(
                      f"🗂️ Opened {len(tabs_opened)} navigation tabs (one for each leg)\n"
                      f"🎵 Music: {music_status}\n\n"
                      f"The map should now be open in your default browser with navigation segments in separate tabs."
+            )
+        ]
+    
+    elif name == "get_destination_weather":
+        location = arguments.get("location")
+        
+        if not location:
+            raise ValueError("location is required")
+        
+        weather_info = reminder_service.get_weather(location)
+        weather_message = reminder_service.format_weather_message(weather_info)
+        
+        return [
+            TextContent(
+                type="text",
+                text=f"✅ Weather information retrieved successfully!\n\n{weather_message}"
+            )
+        ]
+    
+    elif name == "get_travel_recommendations":
+        location = arguments.get("location")
+        
+        if not location:
+            raise ValueError("location is required")
+        
+        recommendations = reminder_service.get_travel_recommendations(location)
+        recommendations_message = reminder_service.format_recommendations_message(recommendations)
+        
+        return [
+            TextContent(
+                type="text",
+                text=f"✅ Travel recommendations retrieved successfully!\n\n{recommendations_message}"
+            )
+        ]
+    
+    elif name == "get_destination_info":
+        location = arguments.get("location")
+        
+        if not location:
+            raise ValueError("location is required")
+        
+        info = reminder_service.get_destination_info(location)
+        full_message = f"{info['weather_message']}\n\n{'='*50}\n\n{info['recommendations_message']}"
+        
+        return [
+            TextContent(
+                type="text",
+                text=f"✅ Destination information retrieved successfully!\n\n{full_message}"
             )
         ]
     

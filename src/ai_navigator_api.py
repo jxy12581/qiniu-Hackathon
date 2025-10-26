@@ -9,12 +9,15 @@ import platform
 import subprocess
 import re
 import uvicorn
+from destination_reminder import DestinationReminder
 
 app = FastAPI(
     title="AI Navigation Assistant API",
-    description="AI-powered navigation assistant supporting Baidu Maps and Amap with natural language interface",
-    version="1.0.0"
+    description="AI-powered navigation assistant supporting Baidu Maps and Amap with natural language interface, weather reminders, and travel recommendations",
+    version="1.1.0"
 )
+
+reminder_service = DestinationReminder()
 
 app.add_middleware(
     CORSMiddleware,
@@ -357,6 +360,49 @@ async def ai_navigate(request: NaturalLanguageRequest):
 @app.get("/health", tags=["Info"])
 async def health_check():
     return {"status": "healthy", "service": "AI Navigation Assistant"}
+
+@app.get("/api/weather/{location}", tags=["Destination Info"])
+async def get_weather(location: str):
+    try:
+        weather_info = reminder_service.get_weather(location)
+        if "error" in weather_info:
+            raise HTTPException(status_code=500, detail=weather_info["error"])
+        return {
+            "success": True,
+            "data": weather_info,
+            "message": reminder_service.format_weather_message(weather_info)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/recommendations/{location}", tags=["Destination Info"])
+async def get_recommendations(location: str):
+    try:
+        recommendations = reminder_service.get_travel_recommendations(location)
+        return {
+            "success": True,
+            "data": recommendations,
+            "message": reminder_service.format_recommendations_message(recommendations)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/destination-info/{location}", tags=["Destination Info"])
+async def get_destination_info(location: str):
+    try:
+        info = reminder_service.get_destination_info(location)
+        return {
+            "success": True,
+            "location": location,
+            "weather": info["weather"],
+            "recommendations": info["recommendations"],
+            "formatted_messages": {
+                "weather": info["weather_message"],
+                "recommendations": info["recommendations_message"]
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
