@@ -4,6 +4,9 @@
 
 An intelligent map navigation service based on MCP (Model Context Protocol) and REST API that enables AI assistants to control Baidu Maps and Amap for navigation, with HTTP API access.
 
+> 💡 **无需 Claude Desktop!** 本项目提供独立的 REST API 服务器，可直接使用所有功能。  
+> 💡 **No Claude Desktop Required!** This project provides a standalone REST API server that works independently.
+
 ## 📋 功能特性 / Features
 
 - ✅ **支持双地图平台** / Support for dual map platforms (Baidu Maps & Amap)
@@ -48,21 +51,64 @@ An intelligent map navigation service based on MCP (Model Context Protocol) and 
 
 ## 🚀 快速开始 / Quick Start
 
-### 安装依赖 / Install Dependencies
+### 方法一：使用 REST API 服务器（推荐，无需 Claude Desktop）
+
+#### 1. 安装依赖 / Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-或者使用 uv 安装:
+或者使用 uv 安装 / Or install with uv:
 
 ```bash
 uv pip install -r requirements.txt
 ```
 
-### 配置 MCP 客户端 / Configure MCP Client
+#### 2. 启动 API 服务器 / Start API Server
 
-#### Claude Desktop 配置
+```bash
+python src/ai_navigator_api.py
+```
+
+服务器将在 `http://localhost:8000` 启动。访问 `http://localhost:8000/docs` 查看交互式 API 文档。
+
+Server will start at `http://localhost:8000`. Visit `http://localhost:8000/docs` for interactive API documentation.
+
+或使用 uvicorn / Or use uvicorn:
+
+```bash
+uvicorn src.ai_navigator_api:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### 3. 测试 API / Test the API
+
+```bash
+# 基础导航测试 / Basic navigation test
+curl -X POST "http://localhost:8000/api/navigate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": "北京天安门",
+    "destination": "上海东方明珠",
+    "mode": "driving",
+    "map_type": "baidu"
+  }'
+
+# AI 自然语言导航测试 / AI natural language test
+curl -X POST "http://localhost:8000/api/ai/navigate" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "帮我从北京天安门导航到上海东方明珠"}'
+```
+
+---
+
+### 方法二：使用 MCP 客户端（需要 Claude Desktop 或其他 MCP 客户端）
+
+#### 1. 安装依赖（同上）
+
+#### 2. 配置 MCP 客户端 / Configure MCP Client
+
+##### Claude Desktop 配置
 
 编辑 Claude Desktop 配置文件:
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
@@ -99,31 +145,43 @@ uv pip install -r requirements.txt
 }
 ```
 
-### 重启 Claude Desktop
+#### 3. 重启 Claude Desktop / Restart Claude Desktop
 
 配置完成后重启 Claude Desktop，服务器将自动连接。
 
-### 启动 API 服务器 / Start API Server 🆕
+After configuration, restart Claude Desktop and the server will connect automatically.
 
-启动 FastAPI HTTP 服务器以通过 REST API 访问导航功能：
+##### 其他 MCP 客户端 / Other MCP-Compatible Clients
 
-```bash
-python src/ai_navigator_api.py
-```
+目前 MCP 协议主要在 Claude Desktop 上经过完整测试。理论上任何支持 MCP 协议的客户端都可以使用本项目。
 
-服务器将在 `http://localhost:8000` 启动。访问 `http://localhost:8000/docs` 查看交互式 API 文档。
+Currently, the MCP protocol has been fully tested with Claude Desktop. Theoretically, any MCP-compatible client can use this project.
 
-或使用 uvicorn 启动：
+**如果 Claude Desktop 不可用：**
+1. ✅ **强烈推荐使用上述 REST API 方法**（方法一），无需任何 AI 客户端即可使用所有功能
+2. 等待其他 AI 平台发布支持 MCP 的桌面应用
+3. 使用 MCP SDK 自行开发客户端
 
-```bash
-uvicorn src.ai_navigator_api:app --reload --host 0.0.0.0 --port 8000
-```
+**If Claude Desktop is unavailable:**
+1. ✅ **Strongly recommend using the REST API method** (Method 1) - all features work without any AI client
+2. Wait for other AI platforms to release MCP-compatible desktop applications
+3. Build your own client using the MCP SDKs
 
 ## 📖 使用方法 / Usage
 
-### 方式一：通过 MCP 与 AI 助手交互
+### 方式一：通过 HTTP REST API（推荐）
+
+启动 API 服务器后，可以通过任何 HTTP 客户端访问导航功能，无需 Claude Desktop。
+
+After starting the API server, access navigation features via any HTTP client, without needing Claude Desktop.
+
+详细的 API 文档请访问 `http://localhost:8000/docs` / For detailed API documentation, visit `http://localhost:8000/docs`
+
+### 方式二：通过 MCP 与 AI 助手交互（需要 Claude Desktop）
 
 配置完成后，你可以通过自然语言与 AI 助手对话来使用地图导航功能。
+
+After configuration, you can use natural language to interact with the AI assistant for navigation.
 
 ### 示例 1: 百度地图导航
 
@@ -163,9 +221,9 @@ uvicorn src.ai_navigator_api:app --reload --host 0.0.0.0 --port 8000
 
 **AI助手**: 将调用 `navigate_amap_multi` 工具并启用路线优化，计算访问所有地点的最短路径。
 
-### 方式二：通过 HTTP REST API 🆕
+---
 
-启动 API 服务器后，可以通过 HTTP 请求访问导航功能。
+## 🔌 REST API 详细示例 / Detailed REST API Examples
 
 #### API 示例 1: 基础导航
 
