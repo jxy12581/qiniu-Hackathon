@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "map-navigator": {
+      "command": "python",
+      "args": [
+        "/path/to/qiniu-Hackathon/src/map_navigator_mcp.py"
+      ],
+      "description": "AI导航助手 - 支持百度地图和高德地图的MCP服务"
+    }
+  },
+  "env": {
+    "QINIU_ACCESS_KEY": "your_qiniu_access_key_here",
+    "QINIU_SECRET_KEY": "your_qiniu_secret_key_here"
+  }
+}

@@ -110,6 +110,8 @@ curl -X POST "http://localhost:8000/api/ai/navigate" \
 
 ##### Claude Desktop 配置
 
+> 📖 **详细配置指南**: 请参阅 [MCP_CONFIG_GUIDE.md](./MCP_CONFIG_GUIDE.md) 获取完整的配置说明，包括七牛AI集成、调试方法和常见问题解答。
+
 编辑 Claude Desktop 配置文件:
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
@@ -144,6 +146,8 @@ curl -X POST "http://localhost:8000/api/ai/navigate" \
   }
 }
 ```
+
+参考配置文件示例: [`claude_desktop_config.json`](./claude_desktop_config.json)
 
 #### 3. 重启 Claude Desktop / Restart Claude Desktop
 
