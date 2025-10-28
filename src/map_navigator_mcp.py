@@ -368,7 +368,7 @@ async def handle_call_tool(
         
         origin_encoded = quote(origin)
         destination_encoded = quote(destination)
-        url = f"https://map.baidu.com/direction?origin={origin_encoded}&destination={destination_encoded}&mode={mode}"
+        url = f"https://map.baidu.com/?ugc_type=3&ugc_ver=1&qt=nav&start=0,{origin_encoded}&end=0,{destination_encoded}&mode={mode}"
         
         webbrowser.open(url)
         
@@ -473,7 +473,7 @@ async def handle_call_tool(
         origin_encoded = quote(origin)
         final_destination_encoded = quote(destinations[-1])
         
-        url = f"https://map.baidu.com/direction?origin={origin_encoded}&destination={final_destination_encoded}&waypoints={waypoints}&mode={mode}"
+        url = f"https://map.baidu.com/?ugc_type=3&ugc_ver=1&qt=nav&start=0,{origin_encoded}&end=0,{final_destination_encoded}&sy=3&mode={mode}"
         
         webbrowser.open(url)
         
