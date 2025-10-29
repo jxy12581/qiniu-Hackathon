@@ -392,7 +392,7 @@ async def navigate(request: NavigationRequest):
         destination_encoded = quote(request.destination.strip())
         
         if request.map_type == "baidu":
-            url = f"https://map.baidu.com/direction?origin={origin_encoded}&destination={destination_encoded}&mode={request.mode}"
+            url = f"https://map.baidu.com/?ugc_type=3&ugc_ver=1&qt=nav&start=0,{origin_encoded}&end=0,{destination_encoded}&mode={request.mode}"
         else:
             mode_map = {
                 "driving": "car",
@@ -446,7 +446,7 @@ async def navigate_multi(request: MultiNavigationRequest):
             waypoints = "|".join([quote(dest) for dest in request.destinations[:-1]])
             origin_encoded = quote(request.origin)
             final_destination_encoded = quote(request.destinations[-1])
-            url = f"https://map.baidu.com/direction?origin={origin_encoded}&destination={final_destination_encoded}&waypoints={waypoints}&mode={request.mode}"
+            url = f"https://map.baidu.com/?ugc_type=3&ugc_ver=1&qt=nav&start=0,{origin_encoded}&end=0,{final_destination_encoded}&sy=3&mode={request.mode}"
             webbrowser.open(url)
         else:
             all_points = [request.origin] + request.destinations
