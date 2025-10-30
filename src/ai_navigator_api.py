@@ -401,7 +401,7 @@ async def navigate(request: NavigationRequest):
                 "riding": "bike"
             }
             amap_mode = mode_map.get(request.mode, "car")
-            url = f"https://uri.amap.com/navigation?from=&to={destination_encoded}&src=myapp&coordinate=gaode&callnative=1&mode={amap_mode}&policy=1&t=0"
+            url = f"https://uri.amap.com/navigation?from={origin_encoded}&to={destination_encoded}&src=myapp&coordinate=gaode&callnative=1&mode={amap_mode}&policy=1&t=0"
         
         webbrowser.open(url)
         music_status = auto_play_music()
