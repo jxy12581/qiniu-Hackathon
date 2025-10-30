@@ -396,7 +396,7 @@ async def handle_call_tool(
         
         origin_encoded = quote(origin)
         destination_encoded = quote(destination)
-        url = f"https://uri.amap.com/navigation?from=&to={destination_encoded}&src=myapp&coordinate=gaode&callnative=1&mode={mode}&policy=1&t=0"
+        url = f"https://uri.amap.com/navigation?from={origin_encoded}&to={destination_encoded}&src=myapp&coordinate=gaode&callnative=1&mode={mode}&policy=1&t=0"
         
         webbrowser.open(url)
         
